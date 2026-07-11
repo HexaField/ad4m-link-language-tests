@@ -18,12 +18,15 @@ CYAN='\033[0;36m'
 BOLD='\033[1m'
 NC='\033[0m'  # No color
 
-info()    { echo -e "${BLUE}ℹ${NC}  $*"; }
-success() { echo -e "${GREEN}✅${NC} $*"; }
-warn()    { echo -e "${YELLOW}⚠${NC}  $*"; }
-error()   { echo -e "${RED}❌${NC} $*"; }
-header()  { echo -e "\n${BOLD}${CYAN}═══ $* ═══${NC}\n"; }
-step()    { echo -e "${BOLD}→${NC} $*"; }
+# Diagnostics go to stderr so they never contaminate $(...) captures of the
+# data-returning helpers below (e.g. create_test_perspective echoes a UUID on
+# stdout; its progress messages must not be captured alongside it).
+info()    { echo -e "${BLUE}ℹ${NC}  $*" >&2; }
+success() { echo -e "${GREEN}✅${NC} $*" >&2; }
+warn()    { echo -e "${YELLOW}⚠${NC}  $*" >&2; }
+error()   { echo -e "${RED}❌${NC} $*" >&2; }
+header()  { echo -e "\n${BOLD}${CYAN}═══ $* ═══${NC}\n" >&2; }
+step()    { echo -e "${BOLD}→${NC} $*" >&2; }
 
 # ─── Python / websockets dependency ─────────────────────────────────────────
 
