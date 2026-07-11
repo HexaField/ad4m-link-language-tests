@@ -104,10 +104,11 @@ Proves each AD4M link language correctly reads/writes to its native protocol bac
 | **NextGraph** | [nextgraph-link-language](https://github.com/coasys/nextgraph-link-language) | Websockets | [NextGraph](https://nextgraph.org/) |
 | **Holochain** | [p-diff-sync](https://github.com/coasys/ad4m/tree/dev/bootstrap-languages/p-diff-sync) | Kitsune (Iroh) | [Holochain Launcher](https://www.holochain.org/) |
 | **Git** | [git-link-language](https://github.com/coasys/git-link-language) | Local filesystem (Git repo) ¹ | [`git` CLI](https://git-scm.com/) |
+| **peer2panda** | [peer2panda-link-language](https://github.com/coasys/peer2panda-link-language) | HTTP → sidecar gateway (Rust p2panda / iroh QUIC) | [p2panda](https://p2panda.org) |
 
 ¹ v1 is local-first only — automated remote sync (`git fetch`/`push`) gates on a binary HTTP host enhancement; see [spec §11.2](https://github.com/coasys/git-link-language/blob/main/README.md#known-limitation-remote-sync).
 
-See [`CAPABILITIES.md`](CAPABILITIES.md) for a full capability matrix across all 10 languages.
+See [`CAPABILITIES.md`](CAPABILITIES.md) for a full capability matrix across all 11 languages.
 
 #### Single-Device Backend Verification (`interop/`)
 
@@ -123,6 +124,7 @@ cd interop
 ./verify-solid.sh   # Test Solid → CSS pod
 ./verify-hypercore.sh # Test Hypercore → sidecar gateway
 ./verify-git.sh     # Test Git → local repo (no Docker, no daemon)
+./verify-peer2panda.sh # Test peer2panda → Rust sidecar gateway (no Docker)
 ./teardown.sh       # Stop all services
 
 # Expression language verification (no Docker required)
