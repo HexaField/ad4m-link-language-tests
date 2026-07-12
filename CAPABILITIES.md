@@ -65,7 +65,7 @@ How participants are identified and authenticated.
 ⁸ Kubo API is typically HTTP (localhost); swarm connections use libp2p encryption.
 ⁹ DHT entries are public to the network; the DNA hash acts as a namespace boundary, not an encryption boundary.
 ¹⁰ Matrix language has E2EE settings (`encryption.enabled`), wrapping content in encrypted room events. Requires Olm/Megolm key exchange.
-¹¹ Nostr supports NIP-04/NIP-44 encrypted DMs at the protocol level, but the link language currently uses public events (kind:30078).
+¹¹ Nostr supports NIP-04/NIP-44 encrypted DMs at the protocol level, but the link language currently uses public events (kind:9078).
 ¹² Hypercore language supports symmetric key encryption of feed blocks (`encryption.ts`). Peers must share the key out-of-band.
 ²¹ p2panda ships an optional data-encryption layer (MLS-style groups); the link language does not yet enable it, so operations are signed but transmitted in cleartext CBOR to topic subscribers.
 
@@ -78,13 +78,24 @@ What each language implements from the AD4M Language Interface.
 |  | Holochain | Matrix | Nostr | AT Proto | IPFS | Solid | Hypercore | ActivityPub | NextGraph | Git | peer2panda |
 |--|-----------|--------|-------|----------|------|-------|-----------|-------------|----------|-----|------------|
 | **perspective-commit** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ (one commit per diff) | ✅ |
-| **perspective-sync** | ✅ (gossip) | ✅ (timeline poll) | ✅ (REQ filter) | ✅ (repo list) | ✅ (IPNS resolve) | ✅ (container list) | ✅ (feed poll) | ✅ (outbox poll) | ✅ (CRDT auto-sync + gateway poll) | ✅ (local HEAD-movement) ¹⁷ | ✅ (gossip + rev poll) |
+| **perspective-sync** | ✅ (diff-DAG + scribe) | ✅ (state-events + state-res-v2) | ✅ (e-tag DAG + OR-Set) | ✅ (MST chain + OR-Set) | ✅ (multi-parent DAG + OR-Set) | ✅ (diff-resource DAG + OR-Set) | ✅ (Autobase + OR-Set) | ✅ (activity DAG + OR-Set) | ✅ (native CRDT) | ✅ local ¹⁷ (commit-DAG + OR-Set) | ✅ (op-log + OR-Set) |
+| **↳ currentRevision** ²² | DAG-head hash | state digest | head-event-id hash | commit-CID digest | head-CID hash | head diff-resource hash | Autobase root hash | head-activity-id hash | native commit CID | HEAD SHA | BLAKE3 op-head digest |
+| **↳ merge authority** | scribe | state-resolution-v2 | OR-Set | MST + OR-Set | OR-Set | OR-Set | Autobase | OR-Set | native CRDT | OR-Set + git-merge | p2panda partial order |
 | **perspective-query** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ + 3 custom kinds ¹⁸ | ✅ |
 | **peers** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ |
 | **telepresence** | ✅ (native DHT) | ✅ (Presence API) | ✅ (ephemeral events) | ❌ | ✅ (PubSub) | ❌ | ✅ (Hyperswarm peers) | ❌ | ❌ | ❌ | ❌ |
-| **interactions** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ (`flush`, `revert-to`, `tag`) | ❌ |
 | **dual-language** | N/A (primary) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | **sync modes** | Bidirectional | Bi / Pub / Sub | Bi / Pub / Sub | Bi / Pub / Sub | Bi / Pub / Sub | Bi / Pub / Sub | Bi / Pub / Sub | Bi / Pub / Sub | Bidirectional | Local (out-of-band) ¹⁷ | Bidirectional |
+
+**perspective-sync** means *bidirectional full-replica convergence*: two agents that have observed the same link diffs converge to the same Perspective regardless of order or partition. The reference (Holochain `p-diff-sync`) achieves this with a **hash-linked diff-DAG** — `commit(diff)` appends a content-addressed node and `currentRevision()` returns a hash into it. An earlier version of this matrix graded every language ✅ because it *exported a sync function*; that is export-presence, not convergence. The grades above track convergence.
+
+Every language plays **two roles**, kept separate:
+- **Role A — convergence substrate:** a content-addressed, causal, mergeable diff-DAG that is the AD4M-facing source of truth. The `currentRevision` and `merge authority` rows describe it.
+- **Role B — native projection:** a derived, lossy view in the protocol's own idiom (Matrix chat, Nostr notes, AP Notes, Solid RDF, git working tree), for native users of that protocol. Described by [Data Model & Storage](#data-model--storage).
+
+The **litmus test** for Role A is `currentRevision()` returning a *content hash of the DAG head(s)* — never a timestamp, ETag, batch token, or sequence integer. All eleven languages now pass it. Merge is either the protocol's **native authority** (Holochain scribe, Matrix state-resolution-v2, Hypercore Autobase, NextGraph CRDT, AT Proto MST) or an **OR-Set keyed by link hash** — links are immutable content-addressed elements, so add/remove/merge converge deterministically with no coordinator, and removals carry the *original* link hash so they converge against their add.
+
+**Verification status:** each repo's unit tests assert the revision is a content hash stable across restarts, that folding the DAG from genesis reproduces the materialised link set, that concurrent add/remove resolve deterministically, and that diff application is order-independent. Live *multi-agent* convergence over running infrastructure (relay, homeserver, PDS, broker, swarm) is exercised only where a wind-tunnel scenario has a reachable backend — it is not part of every language's CI, and is called out per-language rather than assumed. Git's remote leg is out-of-band in v1 ¹⁷.
 
 **Telepresence** = real-time presence and signalling (online status, peer-to-peer signals, broadcast). Implemented via:
 - **Holochain**: DHT-based `get_online_agents` + `send_signal` zome calls
@@ -94,20 +105,18 @@ What each language implements from the AD4M Language Interface.
 
 AT Proto, IPFS, Solid, ActivityPub, NextGraph, and peer2panda lack a real-time bidirectional channel suitable for presence — AT Proto's firehose is one-way, IPFS PubSub is experimental, Solid notifications are container-level, AP is HTTP push only, NextGraph does not yet expose ephemeral messaging APIs to the client SDK, and peer2panda's gossip overlay could carry ephemeral signals but the link language does not yet expose them.
 
-**Interactions** = protocol-specific actions exposed to the UI (e.g. "invite user", "pin message"). Primarily useful for expression languages, not link languages — link language operations are handled through the perspective API (`addLink`, `queryLinks`, etc.).
-
 **Dual-language** = can coexist alongside Holochain (p-diff-sync) in the same Neighbourhood, with origin tracking to prevent echo loops. Holochain is the primary language, so dual-language doesn't apply to it.
 
 NextGraph telepresence may be added in future versions if native support is added to the SDK or via a secondary layer (e.g. libp2p).
 
-¹⁷ Git's `sync()` detects HEAD movement applied externally (`git pull` from a shell, or shared storage between agents) and emits the resulting PerspectiveDiff. Automated `fetch`/`push` is wired through the architecture but gated on a binary HTTP host enhancement — `httpFetch` UTF-8-decodes response bodies and mangles Git pack files (see [git-link-language §11.2](https://github.com/coasys/git-link-language)). Out-of-band sync mechanisms (shared filesystem, Syncthing, external `git pull`) are how peers exchange state in v1.
+¹⁷ Git's `sync()` detects HEAD movement applied externally (`git pull` from a shell, or shared storage between agents) and emits the resulting PerspectiveDiff. When two peers' histories diverge, `sync()` walks the commit ancestry and merges via an **OR-Set keyed by link hash** (add = link blob; remove = tombstone carrying the original link hash), deriving the delta from the commit op-log rather than a base-vs-head snapshot — so an add-then-remove converges correctly and merge order no longer matters. Automated `fetch`/`push` is wired through the architecture but gated on a binary HTTP host enhancement — `httpFetch` UTF-8-decodes response bodies and mangles Git pack files (see [git-link-language](https://github.com/coasys/git-link-language)). Out-of-band sync mechanisms (shared filesystem, Syncthing, external `git pull`) are how peers exchange state in v1.
 
 ¹⁸ Git is the first language to ship custom `perspective-query` kinds beyond `link-pattern`:
 - `git-history` — walks the commit DAG, returns CommitRecords with link-hash additions/removals
 - `git-state-at` — renders the Perspective as it existed at any past SHA
 - `git-blame` — locates the commit that introduced a given link hash
 
-It's also the first to expose **interactions** as a primary feature (`revert-to` computes a forward inverse and commits it; `tag` creates a Git tag; `flush` reserved for the binary-HTTP-unlocked future).
+²² `currentRevision()` is the convergence litmus: a content hash of the DAG head(s). For single-head protocols it is the native head hash verbatim (git HEAD SHA, NextGraph commit CID); for multi-writer protocols with no single head it is a deterministic digest of the *set* of per-writer head hashes (a version-vector digest). A revision that is a timestamp, ETag, batch token, or sequence integer indicates the language is snapshot-diffing a native projection rather than riding a real diff-DAG.
 
 ---
 
@@ -132,13 +141,15 @@ How links are represented in each protocol's native format.
 
 |  | Holochain | Matrix | Nostr | AT Proto | IPFS | Solid | Hypercore | ActivityPub | NextGraph | Git | peer2panda |
 |--|-----------|--------|-------|----------|------|-------|-----------|-------------|----------|-----|------------|
-| **Native format** | DHT entry (Action + Entry) | Custom room event | kind:30078 event (parameterized replaceable) | Repo record (`ad4m.link.triple`) | DAG-JSON object | RDF/Turtle resource | Feed block (JSON) | AP Activity (`Create{Note}`) | RDF Triple (SPARQL) | JSON file `links/<hash>.json` | Signed CBOR operation |
+| **Native format** | DHT entry (Action + Entry) | State event (`dev.ad4m.link`) | kind:9078 event (regular) | Repo record (`ad4m.link.triple` / `.tombstone`) | DAG-JSON commit (multi-parent) | Immutable diff resource (`diff-<hash>.ttl`) | Feed block (JSON) | AP Activity (`ad4m:Diff` tag) | RDF Triple (SPARQL) | JSON file `links/<hash>.json` | Signed CBOR operation |
 | **Storage location** | Holochain DHT | Homeserver DB | Relay DB | PDS repo | IPFS datastore | Pod filesystem | Hypercore feed | Inbox/Outbox | NextGraph wallet/store | Git working tree (executor data dir) | p2panda SQLite op store (gateway) |
-| **Content-addressed** | ✅ (entry hash) | ❌ | ❌ (event ID = hash) | ❌ (rkey) | ✅ (CID) | ❌ | ❌ (seq number) | ❌ | ❌ | ✅ (hash filename) | ✅ (BLAKE3 op hash) |
-| **Append-only** | ✅ (DHT) | ❌ | Partial (replaceable events) | ❌ | ✅ | ❌ | ✅ | ❌ | ❌ (CRDT) | ✅ (commit history) | ✅ (per-author log) |
-| **Merkle structure** | ✅ (DHT) | ❌ | ❌ | ✅ (MST) | ✅ (DAG) | ❌ | ✅ (Merkle tree) | ❌ | ✅ (DAG) | ✅ (Git commit DAG) | ✅ (BLAKE3 hash chain) |
+| **Content-addressed** | ✅ (entry hash) | ❌ | ✅ (event ID) | ❌ (rkey) | ✅ (CID) | ✅ (diff resource) | ❌ (seq number) | ✅ (diff activity) | ✅ (commit CID) | ✅ (hash filename) | ✅ (BLAKE3 op hash) |
+| **Append-only** | ✅ (DHT) | ❌ | ✅ (regular events) | ❌ | ✅ | ✅ (immutable diffs) | ✅ | ✅ (immutable diffs) | ❌ (CRDT) | ✅ (commit history) | ✅ (per-author log) |
+| **Merkle structure** | ✅ (DHT) | ❌ | ✅ (e-tag DAG) | ✅ (MST) | ✅ (DAG) | ✅ (diff-resource DAG) | ✅ (Merkle tree) | ✅ (activity DAG) | ✅ (DAG) | ✅ (Git commit DAG) | ✅ (BLAKE3 hash chain) |
 | **Human-readable** | ❌ | ✅ (dual render) | ❌ (app data) | ❌ (structured record) | ❌ (DAG-JSON) | ✅ (RDF/Turtle) | ❌ | ✅ (Note content) | ❌ (SPARQL/RDF) | ✅ (JSON + `git log`) | ❌ (CBOR) |
 | **Native app visibility** | N/A | Element, other Matrix clients | Nostr clients (raw app data) | Bluesky (custom collection) | IPFS Gateway / Desktop | Penny, Mashlib, any Solid app | hyp CLI | Mastodon, Pleroma, Misskey | NextGraph apps | `git` CLI, GitHub / GitLab / Gitea web UIs | Other p2panda nodes (same topic) |
+
+Since the diff-DAG rework, the **Content-addressed**, **Append-only**, and **Merkle structure** rows describe the AD4M-facing convergence substrate (Role A) — the content-hash-linked diff-DAG each language persists — rather than the human-facing native projection (Role B) covered by **Native format**, **Human-readable**, and **Native app visibility**. Languages that ride a native DAG (IPFS, AT Proto, Hypercore, Git, peer2panda, NextGraph) reuse it directly; Nostr, Solid, and ActivityPub *emulate* one with content-hash parent pointers (Nostr e-tag chains, Solid `ad4m:previous`, AP `ad4m:prev`). Matrix keys links by hash into room **state** and rides state-resolution-v2 for merge, so its convergence substrate is the state store rather than a Merkle log — hence ❌ on the log-shaped rows but ✅ on perspective-sync.
 
 ---
 
@@ -151,7 +162,7 @@ How links are represented in each protocol's native format.
 | **Max neighbourhood size** | DHT-limited (thousands) | Server-limited | Relay-limited | PDS-limited | DHT-limited | Server-limited | Feed-limited | Server-limited | CRDT-limited | Git-repo-limited ¹⁹ | Gossip-limited |
 | **Bandwidth efficiency** | Gossip (efficient) | Polling (moderate) | Subscription (efficient) | Polling (moderate) | Polling (moderate) | Polling (moderate) | Polling (moderate) | Push delivery (efficient) | CRDT delta sync (efficient) | Pack files (very efficient) | Gossip + log-height sync (efficient) |
 
-¹⁹ Practical ceilings follow standard Git advice — GitHub recommends keeping repos under ~1GB and under ~100K files. Render time grows linearly with link count until the snapshot cache lands ([git-link-language spec §11.6](https://github.com/coasys/git-link-language)).
+¹⁹ Practical ceilings follow standard Git advice — GitHub recommends keeping repos under ~1GB and under ~100K files. Render time grows linearly with link count ([git-link-language](https://github.com/coasys/git-link-language)).
 
 ---
 
