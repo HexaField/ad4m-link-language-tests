@@ -12,6 +12,7 @@ import {
   s5QueryScaling, s6ApiConcurrency, s7MemoryStability, s8SubjectClassQueries,
   m1NeighbourhoodSync, m2MultiExecutorScale, m3LinkLanguageComparison,
   m4WriteLoadUnderSync, m5ConcurrentNeighbourhoods,
+  c1Convergence,
   a1McpThroughput,
   s9NeighbourhoodMemoryLeak,
   s10SubscriptionFanout, s12PersistenceColdQuery, s13ReadWriteMix, s14MultiPerspectiveLoad,
@@ -27,6 +28,7 @@ const ALL_SCENARIOS: Scenario[] = [
   s5QueryScaling, s6ApiConcurrency, s7MemoryStability, s8SubjectClassQueries,
   m1NeighbourhoodSync, m2MultiExecutorScale, m3LinkLanguageComparison,
   m4WriteLoadUnderSync, m5ConcurrentNeighbourhoods,
+  c1Convergence,
   a1McpThroughput,
   s9NeighbourhoodMemoryLeak,
   s10SubscriptionFanout, s12PersistenceColdQuery, s13ReadWriteMix, s14MultiPerspectiveLoad,
@@ -128,6 +130,7 @@ async function runScenariosForBranch(
         adminToken: config.adminToken,
         adamRepoPath: config.adamRepoPath,
         tmpDirBase: config.tmpDirBase,
+        executorPath: binaryPath,
       };
 
       try {

@@ -8,8 +8,18 @@ services:
       - "7777:7777"
     volumes:
       - nostr-data:/app/strfry-db
+      # The base image ships a whitelist write-policy with placeholder pubkeys,
+      # which rejects every real diff-DAG event. Override it with accept-all so
+      # any templated keypair can publish to this localhost convergence relay.
+      - ./strfry-accept-all.py:/app/write-policy.py:ro
     environment:
       - STRFRY_PORT=7777
+    # strfry raises RLIMIT_NOFILE to 1_000_000 on boot; grant the container a
+    # hard cap above that or it crash-loops ("exceeds max of 524288").
+    ulimits:
+      nofile:
+        soft: 1048576
+        hard: 1048576
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "nc", "-z", "localhost", "7777"]

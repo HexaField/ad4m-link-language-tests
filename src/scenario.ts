@@ -25,6 +25,12 @@ export interface ScenarioContext {
   adamRepoPath: string;
   /** Base directory for temporary files */
   tmpDirBase: string;
+  /**
+   * Absolute path to the executor binary the runner started for this branch.
+   * Scenarios that spin up a second executor (e.g. c1 convergence) use this so
+   * they work under `--executor-path`, where the binary is not in the build dir.
+   */
+  executorPath?: string;
 }
 
 export interface Scenario {
