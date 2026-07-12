@@ -1,26 +1,30 @@
-# Community Solid Server (CSS)
-# Port 3000: HTTP API for Solid pods
+# Community Solid Server (CSS) — test server for the C1 convergence scenario.
+#
+# Port is env-configurable (SOLID_PORT, default 3000) so CSS can run on a free
+# port when :3000 is taken by another local service. SOLID_BASE_URL must match
+# the URL the language talks to (default http://localhost:${SOLID_PORT}).
+#
+# Uses ./solid-public.json — the stock CSS config with authorization/webacl.json
+# swapped for authorization/allow-all.json and in-memory storage. That makes the
+# neighbourhood container publicly read/write so the unauthenticated Solid link
+# language can PUT/GET diff-commit resources. TEST ONLY, never a production
+# posture. In-memory ⇒ state is ephemeral (fresh on every restart) and no volume
+# is needed.
 services:
   solid-server:
     image: solidproject/community-server:latest
     container_name: ad4m-test-solid-server
     ports:
-      - "3000:3000"
+      - "${SOLID_PORT:-3000}:${SOLID_PORT:-3000}"
     volumes:
-      - solid-data:/data
-    environment:
-      - CSS_PORT=3000
-      - CSS_BASE_URL=http://localhost:3000
+      - ./solid-public.json:/config.json:ro
     command: >
-      -p 3000
-      -b http://localhost:3000
-      --seededPodConfigJson /dev/null
+      -c /config.json
+      -p ${SOLID_PORT:-3000}
+      -b ${SOLID_BASE_URL:-http://localhost:3000}
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-sf", "http://localhost:3000/"]
+      test: ["CMD", "curl", "-sf", "${SOLID_BASE_URL:-http://localhost:3000}/"]
       interval: 5s
       timeout: 3s
       retries: 10
-
-volumes:
-  solid-data:

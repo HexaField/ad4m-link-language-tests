@@ -22,6 +22,15 @@ function hex32(seed: string): string {
 /** Coasys workspace root — parent of the wind-tunnel checkout by default. */
 const WORKSPACE_ROOT = process.env.CONVERGENCE_WORKSPACE_ROOT || resolve(process.cwd(), "..");
 
+/**
+ * Solid (Community Solid Server) endpoint — env-configurable so CSS can run on a
+ * free port when :3000 is occupied by another local service. The language bundle
+ * and the health probe must agree with the port the compose file binds, so all
+ * three read the same two vars: SOLID_PORT and SOLID_BASE_URL.
+ */
+const SOLID_PORT = parseInt(process.env.SOLID_PORT || "3000", 10);
+const SOLID_BASE_URL = process.env.SOLID_BASE_URL || `http://127.0.0.1:${SOLID_PORT}`;
+
 export interface BackendHealth {
   /** docker-compose file under infra/ that brings the backend up. */
   compose: string;
@@ -131,11 +140,11 @@ export const CONVERGENCE_LANGUAGES: ConvergenceLanguage[] = [
     ],
     backend: {
       compose: "docker-compose.solid.yml",
-      healthTcp: { host: "127.0.0.1", port: 3000 },
+      healthTcp: { host: "127.0.0.1", port: SOLID_PORT },
     },
     makeTemplateData(neighbourhoodId: string): Record<string, string> {
       return {
-        SOLID_POD_URL: "http://127.0.0.1:3000",
+        SOLID_POD_URL: SOLID_BASE_URL,
         SOLID_CONTAINER_PATH: `ad4m/${neighbourhoodId}/`,
         NEIGHBOURHOOD_META: "{}",
       };
