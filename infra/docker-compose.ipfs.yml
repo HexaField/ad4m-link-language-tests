@@ -1,20 +1,30 @@
 # IPFS daemon — kubo
-# Port 5001: HTTP API
-# Port 4001: Swarm (libp2p)
-# Port 8080: Gateway (read-only)
+# Single shared node for the C1 convergence scenario: both executors talk to
+# the SAME Kubo HTTP API (5001), so head-announce pubsub is delivered locally
+# and no swarm/gateway federation is needed. Only 5001 is published to avoid
+# colliding with whatever already holds host 8080 (the kubo gateway).
+#
+# Pubsub MUST be enabled explicitly: the link language announces DAG heads over
+# an IPFS pubsub topic, and kubo ships pubsub disabled ("run daemon with
+# --enable-pubsub-experiment"). This is the IPFS analogue of strfry's
+# reject-all default write-policy — invisible to unit tests, fatal to live sync.
 services:
   ipfs-node:
     image: ipfs/kubo:latest
     container_name: ad4m-test-ipfs
+    command:
+      - daemon
+      - --migrate=true
+      - --agent-version-suffix=docker
+      - --enable-pubsub-experiment
+      - --enable-namesys-pubsub
     ports:
       - "5001:5001"
-      - "4001:4001"
-      - "4001:4001/udp"
-      - "8080:8080"
     volumes:
       - ipfs-data:/data/ipfs
     environment:
       - IPFS_PROFILE=server
+      - IPFS_TELEMETRY=off
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "ipfs id || exit 1"]

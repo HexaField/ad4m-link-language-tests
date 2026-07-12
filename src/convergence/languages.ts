@@ -12,6 +12,12 @@
  */
 
 import { resolve } from "path";
+import { createHash } from "crypto";
+
+/** Deterministic 32-byte hex digest of a string (e.g. a shared hypercore key). */
+function hex32(seed: string): string {
+  return createHash("sha256").update(seed).digest("hex");
+}
 
 /** Coasys workspace root — parent of the wind-tunnel checkout by default. */
 const WORKSPACE_ROOT = process.env.CONVERGENCE_WORKSPACE_ROOT || resolve(process.cwd(), "..");
@@ -77,6 +83,124 @@ export const CONVERGENCE_LANGUAGES: ConvergenceLanguage[] = [
         NOSTR_NEIGHBOURHOOD_ID: neighbourhoodId,
         NOSTR_PUBKEY,
         NOSTR_PRIVKEY,
+        NEIGHBOURHOOD_META: "{}",
+      };
+    },
+  },
+
+  {
+    // IPFS (Kubo) — diff-DAG blocks addressed by CID, heads announced over
+    // pubsub. NEIGHBOURHOOD_URL is the per-neighbourhood pubsub topic both
+    // agents subscribe to; only IPFS_API_URL is strictly required to connect.
+    id: "ipfs",
+    bundlePath: resolve(WORKSPACE_ROOT, "ipfs-link-language/build/bundle.js"),
+    possibleTemplateParams: [
+      "IPFS_API_URL",
+      "IPFS_GATEWAY_URL",
+      "IPNS_NAME",
+      "PINNING_SERVICE_URL",
+      "NEIGHBOURHOOD_META",
+      "NEIGHBOURHOOD_URL",
+    ],
+    backend: {
+      compose: "docker-compose.ipfs.yml",
+      healthTcp: { host: "127.0.0.1", port: 5001 },
+    },
+    makeTemplateData(neighbourhoodId: string): Record<string, string> {
+      return {
+        IPFS_API_URL: "http://127.0.0.1:5001",
+        IPFS_GATEWAY_URL: "http://127.0.0.1:8080",
+        NEIGHBOURHOOD_URL: `neighbourhood://${neighbourhoodId}`,
+        NEIGHBOURHOOD_META: "{}",
+      };
+    },
+  },
+
+  {
+    // Solid (Community Solid Server) — diff-commit DAG as LDP resources under a
+    // shared container. Both agents write the same container path; convergence
+    // rides GET/PUT of content-hashed resources.
+    id: "solid",
+    bundlePath: resolve(WORKSPACE_ROOT, "solid-link-language/build/bundle.js"),
+    possibleTemplateParams: [
+      "SOLID_POD_URL",
+      "SOLID_CONTAINER_PATH",
+      "SOLID_IDP_URL",
+      "SOLID_WEBID",
+      "NEIGHBOURHOOD_META",
+    ],
+    backend: {
+      compose: "docker-compose.solid.yml",
+      healthTcp: { host: "127.0.0.1", port: 3000 },
+    },
+    makeTemplateData(neighbourhoodId: string): Record<string, string> {
+      return {
+        SOLID_POD_URL: "http://127.0.0.1:3000",
+        SOLID_CONTAINER_PATH: `ad4m/${neighbourhoodId}/`,
+        NEIGHBOURHOOD_META: "{}",
+      };
+    },
+  },
+
+  {
+    // NextGraph — native CRDT store fronted by a Node sidecar gateway (WASM).
+    // NEXTGRAPH_REPO_ID is the shared repo/store id both agents open.
+    id: "nextgraph",
+    bundlePath: resolve(WORKSPACE_ROOT, "nextgraph-link-language/build/bundle.js"),
+    possibleTemplateParams: ["NEXTGRAPH_GATEWAY_URL", "NEXTGRAPH_REPO_ID", "NEIGHBOURHOOD_META"],
+    backend: {
+      compose: "gateway (nextgraph-link-language/gateway, npm start on :7779)",
+      healthTcp: { host: "127.0.0.1", port: 7779 },
+    },
+    makeTemplateData(neighbourhoodId: string): Record<string, string> {
+      return {
+        NEXTGRAPH_GATEWAY_URL: "http://127.0.0.1:7779",
+        NEXTGRAPH_REPO_ID: neighbourhoodId,
+        NEIGHBOURHOOD_META: "{}",
+      };
+    },
+  },
+
+  {
+    // peer2panda — p2panda gossip over a Rust sidecar gateway (iroh transport).
+    // PEER2PANDA_TOPIC_ID is the shared gossip topic both agents subscribe to.
+    id: "peer2panda",
+    bundlePath: resolve(WORKSPACE_ROOT, "peer2panda-link-language/build/bundle.js"),
+    possibleTemplateParams: ["PEER2PANDA_GATEWAY_URL", "PEER2PANDA_TOPIC_ID", "NEIGHBOURHOOD_META"],
+    backend: {
+      compose: "gateway (peer2panda-link-language/gateway, cargo run --release on :7780)",
+      healthTcp: { host: "127.0.0.1", port: 7780 },
+    },
+    makeTemplateData(neighbourhoodId: string): Record<string, string> {
+      return {
+        PEER2PANDA_GATEWAY_URL: "http://127.0.0.1:7780",
+        PEER2PANDA_TOPIC_ID: neighbourhoodId,
+        NEIGHBOURHOOD_META: "{}",
+      };
+    },
+  },
+
+  {
+    // Hypercore — Autobase multi-writer fronted by a Node sidecar gateway.
+    // Both agents MUST open the SAME base: template a deterministic shared
+    // 32-byte key (never "auto", which would fork two independent bases).
+    id: "hypercore",
+    bundlePath: resolve(WORKSPACE_ROOT, "hypercore-link-language/build/bundle.js"),
+    possibleTemplateParams: [
+      "HYPERCORE_KEY",
+      "DISCOVERY_KEY",
+      "BOOTSTRAP_NODES",
+      "NEIGHBOURHOOD_META",
+      "HYPERCORE_GATEWAY_URL",
+    ],
+    backend: {
+      compose: "gateway (hypercore-link-language/gateway, npm start on :7790)",
+      healthTcp: { host: "127.0.0.1", port: 7790 },
+    },
+    makeTemplateData(neighbourhoodId: string): Record<string, string> {
+      return {
+        HYPERCORE_GATEWAY_URL: "http://127.0.0.1:7790",
+        HYPERCORE_KEY: hex32(neighbourhoodId),
         NEIGHBOURHOOD_META: "{}",
       };
     },
