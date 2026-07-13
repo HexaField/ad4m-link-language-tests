@@ -85,7 +85,7 @@ What each language implements from the AD4M Language Interface.
 | **↳ merge authority** | scribe | state-resolution-v2 | OR-Set | MST + OR-Set | OR-Set | OR-Set | Autobase | OR-Set | native CRDT | OR-Set + git-merge | p2panda partial order |
 | **perspective-query** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ + 3 custom kinds ¹⁸ | ✅ |
 | **peers** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ |
-| **telepresence** | ✅ (native DHT) | ✅ (Presence API) | ✅ (ephemeral events) | ❌ | ✅ (PubSub) | ❌ | ✅ (Hyperswarm peers) | ❌ | ❌ | ❌ | ✅ (ephemeral_stream) |
+| **telepresence** | ✅ (native DHT) | ✅ (Presence API) | ✅ (ephemeral events) | ❌ | ❌ ²⁵ | ❌ | ✅ (Hyperswarm peers) | ❌ | ❌ | ❌ | ✅ (ephemeral_stream) |
 | **dual-language** | N/A (primary) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | **sync modes** | Bidirectional | Bi / Pub / Sub | Bi / Pub / Sub | Bi / Pub / Sub | Bi / Pub / Sub | Bi / Pub / Sub | Bi / Pub / Sub | Bi / Pub / Sub | Bidirectional | Bi (GitHub) / out-of-band (Radicle) ¹⁷ | Bidirectional |
 
@@ -125,6 +125,8 @@ C1 has also been **run end-to-end for Git** (a dependency-light co-located git-d
 - **peer2panda**: p2panda's native `ephemeral_stream` — a non-persisted, online-only, signed gossip overlay on a topic derived as `BLAKE3(op_topic + ":telepresence")`, structurally separate from the op-log so presence traffic **cannot** move `currentRevision` (the ephemeral invariant holds by construction). Online status, directed signals, and broadcasts ride the sidecar gateway's REST API; the gateway's node has one signing key, so the AD4M DID travels inside each payload and the gateway routes by DID. The inbox is a 1-based monotonic `seq` cursor polled each sync cycle. Delivery is **best-effort** — ephemeral gossip has no store-and-forward, so a signal can drop during mesh warmup and must be re-sent if it has to arrive. **Live two-node verified** (two mDNS-discovered gateways): peers cross-visible both directions, directed signal delivered to the addressee only, broadcast delivered, and the op-log revision + opCount unchanged by all presence traffic.
 
 AT Proto, IPFS, Solid, ActivityPub, and NextGraph lack a real-time bidirectional channel suitable for presence — AT Proto's firehose is one-way, IPFS PubSub is experimental, Solid notifications are container-level, AP is HTTP push only, and NextGraph does not yet expose ephemeral messaging APIs to the client SDK.
+
+²⁵ IPFS wires the full telepresence interface (`setOnlineStatus` / `getOnlineAgents` / `sendSignal` / `sendBroadcast`) over Kubo PubSub, and *presence detection* works — `pubsub/peers` returns a topic's subscriber set from a single request. But *signal receipt* requires consuming Kubo's long-lived streaming `pubsub/sub` NDJSON response, which the executor's buffering `httpFetch` cannot read (the same transport limitation that blocks Git's pack-file protocol, ¹⁷). A peer can therefore publish a signal but no peer ever receives it, so bidirectional signalling is non-functional and the matrix marks telepresence ❌ rather than overclaim a send-only half.
 
 **Dual-language** = can coexist alongside Holochain (p-diff-sync) in the same Neighbourhood, with origin tracking to prevent echo loops. Holochain is the primary language, so dual-language doesn't apply to it.
 
@@ -226,7 +228,7 @@ For building new Expression Languages, see [`coasys/ad4m-expression-language-tem
 | If you need... | Use |
 |---|---|
 | Fully P2P, no infrastructure | **Holochain**, **Hypercore**, **NextGraph**, or **peer2panda** |
-| Real-time telepresence (presence, signals) | **Holochain**, **Matrix**, **Nostr**, **IPFS**, **Hypercore**, or **peer2panda** |
+| Real-time telepresence (presence, signals) | **Holochain**, **Matrix**, **Nostr**, **Hypercore**, or **peer2panda** |
 | Human-readable data in native apps | **Matrix**, **Nostr**, **AT Proto**, **Solid**, or **ActivityPub** |
 | Sovereign identity (no server authority) | **Holochain**, **Nostr**, **IPFS**, **Hypercore**, **NextGraph**, or **peer2panda** |
 | End-to-end encryption | **NextGraph** (wallet-level — inherited from the NextGraph stack, not enforced by the language; see ²⁴) |
