@@ -164,10 +164,31 @@ export const c1Convergence: Scenario = {
       const sourceHash = published.data.address;
       mark("publish_language", pubT0);
 
+      // Optional async provisioning (register a Matrix user + room, create an AT
+      // Proto account, …) — runs once, its output merged OVER makeTemplateData.
+      // A provisioning failure is an honest skip: the backend is up but the run
+      // could not be set up, so we never reach — much less fake — a convergence
+      // measurement.
+      let provisioned: Record<string, string> = {};
+      if (lang.provision) {
+        const provT0 = performance.now();
+        try {
+          provisioned = await lang.provision(neighbourhoodId);
+        } catch (err: any) {
+          mark("provision", provT0, err.message);
+          return fail(
+            `C1 SKIPPED: ${langId} provisioning failed — ${err.message}`,
+            { skipped: true, provisionFailed: true, backendReachable: true }
+          );
+        }
+        mark("provision", provT0);
+        console.log(`[c1] Provisioned ${langId}: ${Object.keys(provisioned).join(", ")}`);
+      }
+
       const tmplT0 = performance.now();
       const templated = await client1.applyTemplateAndPublish(
         sourceHash,
-        JSON.stringify(lang.makeTemplateData(neighbourhoodId))
+        JSON.stringify({ ...lang.makeTemplateData(neighbourhoodId), ...provisioned })
       );
       if (templated.error || !templated.data?.address) {
         return fail(`C1 FAILED: applyTemplate — ${templated.error || "no address returned"}`);

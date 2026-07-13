@@ -13,6 +13,7 @@
 
 import { resolve } from "path";
 import { createHash } from "crypto";
+import { provisionMatrix, provisionAtproto } from "./provision.js";
 
 /** Deterministic 32-byte hex digest of a string (e.g. a shared hypercore key). */
 function hex32(seed: string): string {
@@ -57,6 +58,15 @@ export interface ConvergenceLanguage {
    * deterministic for a given neighbourhood id.
    */
   makeTemplateData(neighbourhoodId: string): Record<string, string>;
+  /**
+   * Optional async provisioning, run ONCE per C1 run after the backend health
+   * check and before templating. Creates any live account/room/repo the backend
+   * needs (a Matrix user + room, an AT Proto account) and returns extra template
+   * variables merged OVER `makeTemplateData`'s output. Throwing aborts the run as
+   * an honest skip (never a faked pass). Omit for backends addressable from the
+   * neighbourhood id alone (nostr, ipfs, solid, …).
+   */
+  provision?(neighbourhoodId: string): Promise<Record<string, string>>;
 }
 
 /**
@@ -212,6 +222,59 @@ export const CONVERGENCE_LANGUAGES: ConvergenceLanguage[] = [
         HYPERCORE_KEY: hex32(neighbourhoodId),
         NEIGHBOURHOOD_META: "{}",
       };
+    },
+  },
+
+  {
+    // Matrix (Conduit homeserver) — links are `dev.ad4m.link` state events keyed
+    // by link hash; merge is Matrix state-resolution. Both agents share one
+    // provisioned user + access token + room (see provisionMatrix), so the
+    // provisioning step supplies USER_ID / ACCESS_TOKEN / ROOM_ID at run time.
+    id: "matrix",
+    bundlePath: resolve(WORKSPACE_ROOT, "matrix-link-language/build/bundle.js"),
+    possibleTemplateParams: [
+      "MATRIX_HOMESERVER_URL",
+      "MATRIX_ROOM_ID",
+      "MATRIX_USER_ID",
+      "MATRIX_ACCESS_TOKEN",
+      "MATRIX_ROOM_ALIAS",
+      "NEIGHBOURHOOD_META",
+    ],
+    backend: {
+      compose: "docker-compose.matrix.yml",
+      healthTcp: { host: "127.0.0.1", port: 6167 },
+    },
+    provision: provisionMatrix,
+    makeTemplateData(_neighbourhoodId: string): Record<string, string> {
+      // The load-bearing values (homeserver, user, token, room) come from
+      // provision(); only the static default is set here.
+      return { NEIGHBOURHOOD_META: "{}" };
+    },
+  },
+
+  {
+    // AT Proto (Bluesky PDS) — additions are `ad4m.link.triple` records, removals
+    // `ad4m.link.tombstone`, riding the repo's MST commit chain. Both agents share
+    // one provisioned account (DID + app password) from provisionAtproto.
+    id: "atproto",
+    bundlePath: resolve(WORKSPACE_ROOT, "atproto-link-language/build/bundle.js"),
+    possibleTemplateParams: [
+      "AT_PDS_URL",
+      "AT_RELAY_URL",
+      "AT_DID",
+      "AT_HANDLE",
+      "AT_COLLECTION_NSID",
+      "AT_APP_PASSWORD",
+      "NEIGHBOURHOOD_META",
+    ],
+    backend: {
+      compose: "docker-compose.atproto.yml",
+      healthTcp: { host: "127.0.0.1", port: 2583 },
+    },
+    provision: provisionAtproto,
+    makeTemplateData(_neighbourhoodId: string): Record<string, string> {
+      // PDS URL, DID, handle, and app password come from provision().
+      return { NEIGHBOURHOOD_META: "{}" };
     },
   },
 ];

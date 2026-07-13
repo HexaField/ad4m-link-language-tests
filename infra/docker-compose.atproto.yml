@@ -11,15 +11,19 @@ services:
     environment:
       PDS_HOSTNAME: "localhost"
       PDS_PORT: "2583"
+      # Dev mode: skips the OAuth "resource URL must be https" check (so the PDS
+      # runs over plain HTTP on localhost) and disables SSRF protection (so it can
+      # reach localhost/plc). Required to run the PDS locally without a TLS proxy.
+      PDS_DEV_MODE: "true"
       PDS_DATA_DIRECTORY: "/pds"
       PDS_BLOBSTORE_DISK_LOCATION: "/pds/blocks"
       PDS_JWT_SECRET: "ad4m-test-jwt-secret-not-for-production"
       PDS_ADMIN_PASSWORD: "ad4m-test-admin"
-      PDS_PLC_ROTATION_KEY_K256_PRIVATE_KEY_HEX: ""
+      # A real secp256k1 rotation key is required for account creation (minting a
+      # did:plc). Test-only, generated for this harness; never a production key.
+      PDS_PLC_ROTATION_KEY_K256_PRIVATE_KEY_HEX: "689699b35d79c9633e2f11fb5678c5dd4644b8767ea699d0260edc4c71afc410"
       PDS_DID_PLC_URL: "https://plc.directory"
       PDS_INVITE_REQUIRED: "false"
-      PDS_EMAIL_SMTP_URL: ""
-      PDS_EMAIL_FROM_ADDRESS: "noreply@test.local"
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:2583/xrpc/_health"]

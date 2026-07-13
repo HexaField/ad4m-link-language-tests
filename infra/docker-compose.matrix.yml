@@ -9,9 +9,15 @@ services:
     volumes:
       - conduit-data:/var/lib/matrix-conduit
     environment:
+      # Conduit panics at startup unless CONDUIT_CONFIG is set; an EMPTY string
+      # selects env-var-only configuration (no TOML file), which is what the
+      # CONDUIT_* vars below provide.
+      CONDUIT_CONFIG: ""
       CONDUIT_SERVER_NAME: "ad4m-test.local"
       CONDUIT_PORT: "6167"
       CONDUIT_DATABASE_BACKEND: "rocksdb"
+      # Required when CONDUIT_CONFIG is empty — must match the mounted volume.
+      CONDUIT_DATABASE_PATH: "/var/lib/matrix-conduit"
       CONDUIT_ALLOW_REGISTRATION: "true"
       CONDUIT_ALLOW_FEDERATION: "true"
       CONDUIT_TRUSTED_SERVERS: '["matrix.org"]'
