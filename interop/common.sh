@@ -300,3 +300,9 @@ check_docker_service() {
     error "$name container is not running (status: ${status:-not found})"
     return 1
 }
+
+# ─── Self-contained infra lifecycle ──────────────────────────────────────────
+# Sourced last so infra-lib.sh can use REPO_DIR, the logging helpers, WORKSPACE,
+# and the *_PORT config above. Provides infra_ensure/infra_teardown; see
+# infra-lib.sh for the idempotency-to-system-processes contract.
+source "$SCRIPT_DIR/infra-lib.sh"

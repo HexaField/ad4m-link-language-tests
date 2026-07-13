@@ -25,14 +25,15 @@ cleanup() {
     echo ""
     step "Cleaning up..."
     [[ -n "$PERSPECTIVE_UUID" ]] && cleanup_perspective "$PERSPECTIVE_UUID"
+    infra_teardown
 }
 trap cleanup EXIT
 
-# ─── Step 1: Health check ───────────────────────────────────────────────────
+# ─── Step 1: Ensure backend (self-contained) ────────────────────────────────
 
-step "1. Checking Matrix (Conduit) service..."
-if ! check_http "$MATRIX_URL/_matrix/client/versions" "Matrix (Conduit)"; then
-    fail "service-health" "Matrix/Conduit not reachable at $MATRIX_URL"
+step "1. Ensuring Matrix (Conduit) backend..."
+if ! infra_ensure matrix; then
+    fail "service-health" "Could not bring up Matrix/Conduit backend"
     print_summary "Matrix" || exit 1
 fi
 pass "service-health" "Conduit reachable at $MATRIX_URL"

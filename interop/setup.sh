@@ -1,145 +1,87 @@
 #!/usr/bin/env bash
-# setup.sh — Master setup script for AD4M interop testing
-# Runs FROM local Mac, deploys services to Device A via SSH/Docker
+# setup.sh — OPTIONAL pre-warm for AD4M interop testing.
+#
+# The verify-*.sh scripts are self-contained: each one brings up exactly the
+# backend it needs and tears it down on exit (see infra-lib.sh). You do NOT need
+# to run this script first.
+#
+# Its only job is an optimisation for BATCH runs: pre-warm every backend once so
+# a `for f in verify-*.sh` loop reuses the already-running instances instead of
+# spinning each backend up and down per script. Backends started here are left
+# running with on-disk markers under $INFRA_STATE_DIR; reclaim them afterwards
+# with ./teardown.sh.
+#
+# Idempotency-to-system-processes: pre-warm calls infra_ensure, which REUSES any
+# backend that is already reachable (no marker, never torn down). A relay/PDS/
+# IPFS node you run for other purposes is left exactly as found.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/common.sh"
 check_deps
 
-header "AD4M Link Language Interop — Setup"
+header "AD4M Link Language Interop — Pre-warm"
 
-# ─── Step 1: Verify SSH to Device A ─────────────────────────────────────────
+# All backends with provisionable infra. Protocols with no external infra
+# (activitypub, git, expression-*, holochain) are self-contained in the executor
+# and intentionally absent here.
+PREWARM_PROTOS=(nostr matrix solid atproto ipfs hypercore nextgraph peer2panda)
 
-step "Testing SSH connection to Device A (${DEVICE_A_USER}@${DEVICE_A})..."
-if ssh_device_a "echo ok" >/dev/null 2>&1; then
-    success "SSH to Device A works"
-else
-    error "Cannot SSH to ${DEVICE_A_USER}@${DEVICE_A}"
-    echo "  Ensure SSH key auth is configured and Device A is reachable."
-    exit 1
-fi
+UP=0
+TOTAL=${#PREWARM_PROTOS[@]}
+FAILED=()
 
-# ─── Step 2: Check Docker on Device A ───────────────────────────────────────
-
-step "Checking Docker on Device A..."
-if ssh_device_a "docker info" >/dev/null 2>&1; then
-    success "Docker is available on Device A"
-else
-    error "Docker is not available on Device A"
-    echo "  Install Docker: curl -fsSL https://get.docker.com | sh"
-    exit 1
-fi
-
-# ─── Step 3: Copy docker-compose.yml and start services ─────────────────────
-
-step "Copying docker-compose.yml to Device A..."
-scp -o StrictHostKeyChecking=no "$SCRIPT_DIR/docker-compose.yml" \
-    "${DEVICE_A_USER}@${DEVICE_A}:/tmp/ad4m-interop-compose.yml"
-success "Compose file copied"
-
-step "Starting Docker services on Device A..."
-ssh_device_a "cd /tmp && docker compose -f ad4m-interop-compose.yml up -d" 2>&1 | while read -r line; do
-    echo "  $line"
-done
-success "Docker services started"
-
-# ─── Step 4: Wait for services to be healthy ────────────────────────────────
-
-header "Waiting for services to be ready"
-
-READY=0
-TOTAL=5
-
-# Matrix
-if check_http "$MATRIX_URL/_matrix/client/versions" "Matrix (Conduit)" 30; then
-    ((READY++))
-fi
-
-# AT Protocol
-if check_http "$ATPROTO_URL/xrpc/_health" "AT Protocol (PDS)" 30; then
-    ((READY++))
-fi
-
-# Solid
-if check_http "$SOLID_URL/" "Solid (CSS)" 30; then
-    ((READY++))
-fi
-
-# IPFS
-if check_http "$IPFS_API/api/v0/id" "IPFS (Kubo)" 30; then
-    ((READY++))
-fi
-
-# Nostr
-if check_ws "$DEVICE_A" 7777 "Nostr Relay" 10; then
-    ((READY++))
-fi
-
-echo ""
-info "$READY/$TOTAL Docker services ready"
-
-# ─── Step 5: Hypercore Gateway (Node.js, not Docker) ────────────────────────
-
-header "Setting up Hypercore Gateway"
-
-step "Checking Hypercore Gateway on Device A..."
-if curl -sf --max-time 5 "$HYPERCORE_URL/status" >/dev/null 2>&1; then
-    success "Hypercore Gateway already running"
-else
-    warn "Hypercore Gateway not running at $HYPERCORE_URL"
-    info "To start it manually on Device A:"
-    echo "  cd /tmp/hypercore-gateway && node index.js &"
-    echo "  (See README.md for setup instructions)"
-fi
-
-# ─── Step 6: Check AD4M Executor ────────────────────────────────────────────
-
-header "Checking AD4M Executor"
-wait_executor 15 || {
-    error "AD4M executor is not running"
-    echo "  Start the executor on Device A, port $AD4M_PORT"
-    echo "  Interop tests require a running executor."
-    exit 1
-}
-
-# ─── Step 7: Verify languages are installed ─────────────────────────────────
-
-header "Verifying Language Installations"
-
-for lang_var in LANG_MATRIX LANG_ATPROTO LANG_SOLID LANG_IPFS LANG_NOSTR LANG_HYPERCORE; do
-    lang_addr="${!lang_var}"
-    lang_name="${lang_var#LANG_}"
-    step "Checking $lang_name ($lang_addr)..."
-    result=$(ad4m_rpc language-get "$lang_addr" 2>/dev/null) || true
-    addr=$(echo "$result" | jq -r '.address // empty' 2>/dev/null) || true
-    if [[ -n "$addr" && "$addr" != "null" ]]; then
-        success "$lang_name language found"
+for proto in "${PREWARM_PROTOS[@]}"; do
+    if infra_ensure "$proto"; then
+        ((UP++)) || true
     else
-        warn "$lang_name language NOT found — verify-${lang_name,,}.sh may fail"
+        FAILED+=("$proto")
     fi
 done
 
+echo ""
+info "$UP/$TOTAL backends ready"
+if (( ${#FAILED[@]} > 0 )); then
+    warn "Not pre-warmed: ${FAILED[*]}"
+    info "Gateways (hypercore/nextgraph/peer2panda) must be built first; see each"
+    info "repo's gateway/ dir. verify-<proto>.sh will still try on its own."
+fi
+
+# ─── AD4M Executor (system-under-test — provisioned externally) ──────────────
+# The executor is NOT infra we manage: it is the thing being tested. It must be
+# running with the link languages installed before any verify script can pass.
+
+header "Checking AD4M Executor"
+if wait_executor 15; then
+    header "Verifying Language Installations"
+    for lang_var in LANG_MATRIX LANG_ATPROTO LANG_SOLID LANG_IPFS LANG_NOSTR \
+                    LANG_HYPERCORE LANG_NEXTGRAPH LANG_PEER2PANDA; do
+        lang_addr="${!lang_var:-}"
+        lang_name="${lang_var#LANG_}"
+        [[ -z "$lang_addr" ]] && { warn "$lang_name language address not set (\$$lang_var)"; continue; }
+        result=$(ad4m_rpc language-get "$lang_addr" 2>/dev/null) || true
+        addr=$(echo "$result" | jq -r '.address // empty' 2>/dev/null) || true
+        if [[ -n "$addr" && "$addr" != "null" ]]; then
+            success "$lang_name language found"
+        else
+            warn "$lang_name language NOT found — verify-${lang_name,,}.sh may fail"
+        fi
+    done
+else
+    warn "AD4M executor not reachable at ws://${AD4M_HOST}:${AD4M_PORT}"
+    warn "Start it (with the link languages installed) before running verify scripts."
+fi
+
 # ─── Done ────────────────────────────────────────────────────────────────────
 
-header "Setup Complete"
-echo "Services running on Device A ($DEVICE_A):"
-echo "  • Matrix (Conduit):  $MATRIX_URL"
-echo "  • AT Protocol (PDS): $ATPROTO_URL"
-echo "  • Solid (CSS):       $SOLID_URL"
-echo "  • IPFS (Kubo):       $IPFS_API (gateway: $IPFS_GATEWAY)"
-echo "  • Nostr Relay:       $NOSTR_WS"
-echo "  • Hypercore Gateway: $HYPERCORE_URL"
+header "Pre-warm Complete"
+echo "Pre-warmed backends are left running. Reclaim them with:"
+echo "  ./teardown.sh"
 echo ""
-echo "AD4M Executor: ws://${AD4M_HOST}:${AD4M_PORT}"
-echo ""
-echo "Run individual tests:"
-echo "  ./verify-matrix.sh"
-echo "  ./verify-atproto.sh"
-echo "  ./verify-solid.sh"
-echo "  ./verify-ipfs.sh"
-echo "  ./verify-nostr.sh"
-echo "  ./verify-hypercore.sh"
+echo "Run individual tests (each is self-contained — reuses the pre-warm):"
+echo "  ./verify-nostr.sh   ./verify-matrix.sh    ./verify-solid.sh"
+echo "  ./verify-atproto.sh ./verify-ipfs.sh      ./verify-hypercore.sh"
+echo "  ./verify-nextgraph.sh  ./verify-peer2panda.sh"
 echo ""
 echo "Or run all:"
-echo "  for f in verify-*.sh; do ./$f; done"
+echo "  for f in verify-*.sh; do ./\$f; done && ./teardown.sh"

@@ -22,17 +22,18 @@ cleanup() {
     echo ""
     step "Cleaning up..."
     [[ -n "$PERSPECTIVE_UUID" ]] && cleanup_perspective "$PERSPECTIVE_UUID"
+    infra_teardown
 }
 trap cleanup EXIT
 
-# ─── Step 1: Health check ───────────────────────────────────────────────────
+# ─── Step 1: Ensure backend (self-contained) ────────────────────────────────
 
-step "1. Checking Nostr relay service..."
-if ! check_ws "$DEVICE_A" 7777 "Nostr Relay"; then
-    fail "service-health" "Nostr relay not reachable at ${DEVICE_A}:7777"
+step "1. Ensuring Nostr relay backend..."
+if ! infra_ensure nostr; then
+    fail "service-health" "Could not bring up Nostr relay backend"
     print_summary "Nostr" || exit 1
 fi
-pass "service-health" "Nostr relay port open at ${DEVICE_A}:7777"
+pass "service-health" "Nostr relay reachable at ${DEVICE_A}:7777"
 
 # Additional health check: try an HTTP request (some relays respond to GET)
 RELAY_INFO=$(curl -sf -H "Accept: application/nostr+json" "http://${DEVICE_A}:7777/" 2>/dev/null) || RELAY_INFO=""

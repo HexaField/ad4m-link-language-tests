@@ -23,39 +23,23 @@ cleanup() {
     echo ""
     step "Cleaning up..."
     [[ -n "$PERSPECTIVE_UUID" ]] && cleanup_perspective "$PERSPECTIVE_UUID"
+    infra_teardown
 }
 trap cleanup EXIT
 
-# ─── Step 1: Health check ───────────────────────────────────────────────────
+# ─── Step 1: Ensure gateway (self-contained) ────────────────────────────────
 
-step "1. Checking Hypercore Gateway service..."
-
-GW_STATUS=$(curl -sf --max-time 5 "$HYPERCORE_URL/status" 2>/dev/null) || GW_STATUS=""
-
-if [[ -n "$GW_STATUS" ]]; then
-    pass "service-health" "Hypercore Gateway reachable at $HYPERCORE_URL"
-    info "Status: $GW_STATUS"
-else
-    # Try alternate health endpoints
-    GW_ALT=$(curl -sf --max-time 5 "$HYPERCORE_URL/" 2>/dev/null) || GW_ALT=""
-    if [[ -n "$GW_ALT" ]]; then
-        pass "service-health" "Hypercore Gateway reachable (root endpoint)"
-    else
-        fail "service-health" "Hypercore Gateway not reachable at $HYPERCORE_URL"
-        echo ""
-        echo "  The Hypercore Gateway is a Node.js process (not Docker)."
-        echo "  Start it on Device A:"
-        echo "    cd /tmp/hypercore-gateway && node index.js &"
-        echo ""
-        echo "  If the gateway code doesn't exist yet:"
-        echo "    1. SSH to Device A: ssh ${DEVICE_A_USER}@${DEVICE_A}"
-        echo "    2. mkdir -p /tmp/hypercore-gateway && cd /tmp/hypercore-gateway"
-        echo "    3. npm init -y && npm install hypercore hyperswarm express"
-        echo "    4. Create index.js (see README.md for reference implementation)"
-        echo "    5. node index.js &"
-        print_summary "Hypercore" || exit 1
-    fi
+step "1. Ensuring Hypercore Gateway..."
+if ! infra_ensure hypercore; then
+    fail "service-health" "Could not bring up Hypercore Gateway"
+    echo ""
+    echo "  The Hypercore Gateway is a Node.js process spawned from the"
+    echo "  hypercore-link-language repo's gateway/ dir. Build it first:"
+    echo "    cd \$WORKSPACE/hypercore-link-language/gateway && npm install"
+    echo "  Or point HYPERCORE_GATEWAY_DIR at an existing checkout."
+    print_summary "Hypercore" || exit 1
 fi
+pass "service-health" "Hypercore Gateway reachable at $HYPERCORE_URL"
 
 # ─── Step 2: Create or get a test feed ──────────────────────────────────────
 

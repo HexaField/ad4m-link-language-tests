@@ -21,25 +21,25 @@ cleanup() {
     echo ""
     step "Cleaning up..."
     [[ -n "$PERSPECTIVE_UUID" ]] && cleanup_perspective "$PERSPECTIVE_UUID"
+    infra_teardown
 }
 trap cleanup EXIT
 
-# ─── Step 1: Health check ───────────────────────────────────────────────────
+# ─── Step 1: Ensure backend (self-contained) ────────────────────────────────
 
-step "1. Checking IPFS (Kubo) service..."
-
-# Kubo API requires POST for most endpoints
-IPFS_ID_RESP=$(curl -sf -X POST "$IPFS_API/api/v0/id" 2>/dev/null) || IPFS_ID_RESP=""
-IPFS_PEER_ID=$(echo "$IPFS_ID_RESP" | jq -r '.ID // empty' 2>/dev/null)
-
-if [[ -n "$IPFS_PEER_ID" ]]; then
-    pass "service-health" "Kubo reachable — Peer ID: $IPFS_PEER_ID"
-else
-    fail "service-health" "IPFS Kubo not reachable at $IPFS_API"
+step "1. Ensuring IPFS (Kubo) backend..."
+if ! infra_ensure ipfs; then
+    fail "service-health" "Could not bring up IPFS Kubo backend"
     print_summary "IPFS" || exit 1
 fi
 
-# Check gateway
+# Confirm the API answers and fetch the peer id for reporting (Kubo needs POST).
+IPFS_ID_RESP=$(curl -sf -X POST "$IPFS_API/api/v0/id" 2>/dev/null) || IPFS_ID_RESP=""
+IPFS_PEER_ID=$(echo "$IPFS_ID_RESP" | jq -r '.ID // empty' 2>/dev/null)
+pass "service-health" "Kubo reachable at $IPFS_API${IPFS_PEER_ID:+ — Peer ID: $IPFS_PEER_ID}"
+
+# Check gateway (informational — the compose publishes only the API port, so a
+# gateway on :8080 is optional; native read via gateway is skipped if absent).
 if check_http "$IPFS_GATEWAY" "IPFS Gateway" 5 2>/dev/null; then
     pass "gateway-health" "Gateway reachable at $IPFS_GATEWAY"
 else

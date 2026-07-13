@@ -23,22 +23,24 @@ cleanup() {
     echo ""
     step "Cleaning up..."
     [[ -n "$PERSPECTIVE_UUID" ]] && cleanup_perspective "$PERSPECTIVE_UUID"
+    infra_teardown
 }
 trap cleanup EXIT
 
-# ─── Step 1: Health check ───────────────────────────────────────────────────
+# ─── Step 1: Ensure gateway (self-contained) ────────────────────────────────
 
-step "1. Checking NextGraph gateway..."
-if ! check_http "$GATEWAY_URL/status" "NextGraph Gateway"; then
-    fail "service-health" "NextGraph gateway not reachable at $GATEWAY_URL"
+step "1. Ensuring NextGraph gateway..."
+if ! infra_ensure nextgraph; then
+    fail "service-health" "Could not bring up NextGraph gateway"
     echo ""
-    echo "Start the gateway:"
-    echo "  cd /path/to/nextgraph-link-language/gateway"
-    echo "  PORT=$GATEWAY_PORT STORAGE_PATH=./data tsx index.ts"
+    echo "  The NextGraph gateway is spawned from the nextgraph-link-language"
+    echo "  repo's gateway/ dir (npm start). Build it first:"
+    echo "    cd \$WORKSPACE/nextgraph-link-language/gateway && npm install"
+    echo "  Or point NEXTGRAPH_GATEWAY_DIR at an existing checkout."
     print_summary "NextGraph" || exit 1
 fi
 
-# Verify gateway is healthy
+# Verify gateway reports healthy (port-open alone is not enough)
 STATUS_RESP=$(curl -sf "$GATEWAY_URL/status" 2>/dev/null) || STATUS_RESP=""
 GATEWAY_OK=$(echo "$STATUS_RESP" | jq -r '.ok // false' 2>/dev/null)
 if [[ "$GATEWAY_OK" == "true" ]]; then

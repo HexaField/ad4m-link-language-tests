@@ -2,18 +2,29 @@
 
 This document describes the external infrastructure needed for each Link Language protocol under test. Some protocols are fully P2P and need nothing; others require relay servers, homeservers, or daemon processes.
 
+> **You usually don't provision any of this by hand.** Each `interop/verify-<proto>.sh`
+> is self-contained: it brings up exactly the backend it needs and tears down
+> exactly what it started on exit, reusing anything already running and never
+> touching a system process. This document is the reference for *what* each
+> backend is and *how it's wired* — see `interop/README.md` for the lifecycle
+> (`infra-lib.sh` → `infra_ensure` / `infra_teardown`) and its
+> idempotency-to-system-processes contract.
+
 ## Overview
 
 | Protocol | Infrastructure | Self-Hosted | Public Option | Cost |
 |---|---|---|---|---|
 | Holochain | None | — | Public bootstrap/signal | Free |
 | ActivityPub | None | — | Built into executor | Free |
+| git | None (uses a git remote) | — | GitHub / Radicle | Free |
 | AT Protocol | PDS server | ✅ Docker | bsky.social | Minimal |
 | Nostr | Relay | ✅ Docker | Public relays | Minimal |
 | Matrix | Homeserver | ✅ Docker | matrix.org | Minimal |
 | Solid | Pod server | ✅ Docker | solidcommunity.net | Minimal |
 | IPFS | kubo daemon | ✅ Docker | Public gateways | Minimal |
 | Hypercore | Sidecar gateway | ✅ Node.js | — | Minimal |
+| NextGraph | Sidecar gateway | ✅ Node.js | — | Minimal |
+| peer2panda | Sidecar gateway | ✅ Rust binary | — | Minimal |
 
 ---
 
@@ -217,28 +228,33 @@ Data is stored as files/RDF in the server's volume. Persists across restarts. Vo
 ## IPFS
 
 ### What's Needed
-At least **one IPFS daemon** (kubo/go-ipfs) that both devices can interact with. For proper multi-device testing, each device should have its own IPFS node that can discover each other via the DHT or direct peering.
+IPFS daemons (kubo/go-ipfs) that can interact via the DHT or direct peering. The
+compose file provisions **two** nodes on one host so cross-node exchange can be
+exercised without a second machine.
 
 ### Self-Hosted (Recommended for Testing)
 
-Docker Compose file: `infra/docker-compose.ipfs.yml`
+Docker Compose file: `infra/docker-compose.ipfs.yml` — brings up two kubo nodes,
+`ad4m-test-ipfs-a` (API :5001) and `ad4m-test-ipfs-b` (API :5002), each with its
+own named volume.
 
 ```bash
-# Start IPFS on Device A
-docker compose -f infra/docker-compose.ipfs.yml up -d
+docker compose -p infra -f infra/docker-compose.ipfs.yml up -d
 
-# Verify
+# Verify (node A)
 curl -X POST http://localhost:5001/api/v0/id
 ```
 
-For full multi-device testing, run the same compose on Device B (or use a second IPFS node).
+`verify-ipfs.sh` reuses whatever already answers `:5001`, so a kubo node you run
+for other purposes is left untouched (see the idempotency contract in
+`interop/README.md`).
 
 **Ports:**
 | Port | Service | Protocol |
 |---|---|---|
-| 5001 | HTTP API | TCP |
-| 4001 | Swarm (libp2p) | TCP + UDP |
-| 8080 | Gateway (read-only) | TCP |
+| 5001 | Node A HTTP API | TCP |
+| 5002 | Node B HTTP API | TCP |
+| 4001 | Swarm (libp2p, internal) | TCP + UDP |
 
 ### Public/Cloud Option
 Public IPFS gateways exist for reading, but writing requires your own node. Pinning services (Pinata, Infura) can host content but add complexity.
@@ -307,32 +323,37 @@ Hypercore data is append-only and stored locally by the gateway. Each peer maint
 
 ## Docker Compose Files Reference
 
-All compose files are in the `infra/` directory:
+All compose files are in the repo-root `infra/` directory — one service per file,
+so `infra_ensure`/`infra_teardown` can bring up and reclaim each backend in
+isolation. (`interop/infra/` is unrelated — it holds only `conduit.toml`, the
+Matrix homeserver config.)
 
-| File | Protocol | Primary Port |
-|---|---|---|
-| `docker-compose.nostr.yml` | Nostr | 7777 |
-| `docker-compose.matrix.yml` | Matrix | 6167 |
-| `docker-compose.solid.yml` | Solid | 3000 |
-| `docker-compose.atproto.yml` | AT Protocol | 2583 |
-| `docker-compose.ipfs.yml` | IPFS | 5001, 4001, 8080 |
+| File | Protocol | Container(s) | Port(s) |
+|---|---|---|---|
+| `docker-compose.nostr.yml` | Nostr | `ad4m-test-nostr-relay` | 7777 |
+| `docker-compose.matrix.yml` | Matrix | `ad4m-test-matrix-conduit` | 6167 |
+| `docker-compose.solid.yml` | Solid | `ad4m-test-solid-server` | 3000 |
+| `docker-compose.atproto.yml` | AT Protocol | `ad4m-test-atproto-pds` | 2583 |
+| `docker-compose.ipfs.yml` | IPFS | `ad4m-test-ipfs-a`, `ad4m-test-ipfs-b` | 5001, 5002 |
 
 ### Common Operations
 
+The verify scripts drive these through `infra-lib.sh`; you only need the commands
+below to poke at a backend by hand. Always pass `-p infra` so the project name
+matches what the scripts (and any stale container) use.
+
 ```bash
-# Start specific infrastructure
-docker compose -f infra/docker-compose.nostr.yml up -d
+# Start / logs / stop one backend (from the repo root)
+docker compose -p infra -f infra/docker-compose.nostr.yml up -d
+docker compose -p infra -f infra/docker-compose.nostr.yml logs -f
+docker compose -p infra -f infra/docker-compose.nostr.yml down -v
+```
 
-# View logs
-docker compose -f infra/docker-compose.nostr.yml logs -f
+To reclaim everything the scripts started (and only that), use the marker-driven
+safety net rather than a blind loop — it never touches reused or system services:
 
-# Stop and remove volumes
-docker compose -f infra/docker-compose.nostr.yml down -v
-
-# Stop all infrastructure
-for f in infra/docker-compose.*.yml; do
-    docker compose -f "$f" down -v
-done
+```bash
+cd interop && ./teardown.sh
 ```
 
 ### Resource Estimates

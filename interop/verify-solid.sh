@@ -25,14 +25,15 @@ cleanup() {
     echo ""
     step "Cleaning up..."
     [[ -n "$PERSPECTIVE_UUID" ]] && cleanup_perspective "$PERSPECTIVE_UUID"
+    infra_teardown
 }
 trap cleanup EXIT
 
-# ─── Step 1: Health check ───────────────────────────────────────────────────
+# ─── Step 1: Ensure backend (self-contained) ────────────────────────────────
 
-step "1. Checking Solid (CSS) service..."
-if ! check_http "$SOLID_URL/" "Solid (CSS)"; then
-    fail "service-health" "CSS not reachable at $SOLID_URL"
+step "1. Ensuring Solid (CSS) backend..."
+if ! infra_ensure solid; then
+    fail "service-health" "Could not bring up Solid/CSS backend"
     print_summary "Solid" || exit 1
 fi
 pass "service-health" "CSS reachable at $SOLID_URL"

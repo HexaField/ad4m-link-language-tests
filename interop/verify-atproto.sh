@@ -26,14 +26,15 @@ cleanup() {
     echo ""
     step "Cleaning up..."
     [[ -n "$PERSPECTIVE_UUID" ]] && cleanup_perspective "$PERSPECTIVE_UUID"
+    infra_teardown
 }
 trap cleanup EXIT
 
-# ─── Step 1: Health check ───────────────────────────────────────────────────
+# ─── Step 1: Ensure backend (self-contained) ────────────────────────────────
 
-step "1. Checking AT Protocol PDS service..."
-if ! check_http "$ATPROTO_URL/xrpc/_health" "AT Protocol (PDS)"; then
-    fail "service-health" "PDS not reachable at $ATPROTO_URL"
+step "1. Ensuring AT Protocol PDS backend..."
+if ! infra_ensure atproto; then
+    fail "service-health" "Could not bring up AT Protocol PDS backend"
     print_summary "AT Protocol" || exit 1
 fi
 pass "service-health" "PDS reachable at $ATPROTO_URL"

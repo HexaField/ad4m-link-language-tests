@@ -25,19 +25,20 @@ cleanup() {
     echo ""
     step "Cleaning up..."
     [[ -n "$PERSPECTIVE_UUID" ]] && cleanup_perspective "$PERSPECTIVE_UUID"
+    infra_teardown
 }
 trap cleanup EXIT
 
-# ─── Step 1: Health check ───────────────────────────────────────────────────
+# ─── Step 1: Ensure gateway (self-contained) ────────────────────────────────
 
-step "1. Checking peer2panda gateway..."
-if ! check_http "$GATEWAY_URL/status" "peer2panda Gateway"; then
-    fail "service-health" "peer2panda gateway not reachable at $GATEWAY_URL"
+step "1. Ensuring peer2panda gateway..."
+if ! infra_ensure peer2panda; then
+    fail "service-health" "Could not bring up peer2panda gateway"
     echo ""
-    echo "Start the gateway:"
-    echo "  cd /path/to/peer2panda-link-language/gateway"
-    echo "  cargo build --release"
-    echo "  PORT=$GATEWAY_PORT ./target/release/peer2panda-gateway"
+    echo "  The peer2panda gateway is a Rust binary spawned from the"
+    echo "  peer2panda-link-language repo's gateway/ dir. Build it first:"
+    echo "    cd \$WORKSPACE/peer2panda-link-language/gateway && cargo build --release"
+    echo "  Or point PEER2PANDA_GATEWAY_DIR at an existing checkout."
     print_summary "peer2panda" || exit 1
 fi
 
