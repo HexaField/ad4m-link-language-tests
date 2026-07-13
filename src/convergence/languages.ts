@@ -312,6 +312,51 @@ export const CONVERGENCE_LANGUAGES: ConvergenceLanguage[] = [
       };
     },
   },
+
+  {
+    // Git — the diff-DAG IS a real Git commit chain: one commit per
+    // PerspectiveDiff, links as `links/<hash>.json` blobs, convergence an OR-Set
+    // fold over link hashes via commit-ancestry walk + a two-parent merge commit.
+    // The language speaks GitHub's JSON git-data REST plumbing (refs / commits /
+    // trees / blobs) rather than the native smart protocol, because the
+    // executor's httpFetch UTF-8-decodes bodies and would corrupt binary packs.
+    // Co-located C1 rides a dependency-light git-data server (infra/git-data-shim.mjs)
+    // backed by isomorphic-git — the SAME library the language hashes with, so the
+    // push path's `returnedSha === localOid` assertions hold by construction.
+    // GIT_API_BASE points the GitHub provider at the shim and owner/repo is taken
+    // from the REMOTE_URL path (c1/<neighbourhoodId>), so no github.com is needed.
+    // Both agents template the same repo; A commits -> debounced push advances the
+    // ref, B's push 422s (non-ff) -> pull -> OR-Set merge -> retry, and the
+    // background pull timer fast-forwards each side to the shared head.
+    id: "git",
+    bundlePath: resolve(WORKSPACE_ROOT, "git-link-language/build/bundle.js"),
+    possibleTemplateParams: [
+      "REMOTE_URL",
+      "REMOTE_KIND",
+      "DEFAULT_BRANCH",
+      "AUTH_TOKEN",
+      "GIT_API_BASE",
+      "MERGE_POLICY",
+      "PUSH_DEBOUNCE_MS",
+      "PULL_INTERVAL_MS",
+    ],
+    backend: {
+      compose: "shim (node infra/git-data-shim.mjs on :7792)",
+      healthTcp: { host: "127.0.0.1", port: 7792 },
+    },
+    makeTemplateData(neighbourhoodId: string): Record<string, string> {
+      return {
+        REMOTE_URL: `http://127.0.0.1:7792/c1/${neighbourhoodId}`,
+        GIT_API_BASE: "http://127.0.0.1:7792",
+        REMOTE_KIND: "github",
+        DEFAULT_BRANCH: "main",
+        AUTH_TOKEN: "",
+        MERGE_POLICY: "add-wins",
+        PUSH_DEBOUNCE_MS: "500",
+        PULL_INTERVAL_MS: "2000",
+      };
+    },
+  },
 ];
 
 export function getConvergenceLanguage(id: string): ConvergenceLanguage | undefined {
