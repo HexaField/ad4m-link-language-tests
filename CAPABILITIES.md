@@ -57,17 +57,19 @@ How participants are identified and authenticated.
 |  | Holochain | Matrix | Nostr | AT Proto | IPFS | Solid | Hypercore | ActivityPub | NextGraph | Git | peer2panda |
 |--|-----------|--------|-------|----------|------|-------|-----------|-------------|----------|-----|------------|
 | **Transport encryption** | ✅ (TLS to bootstrap/proxy) | ✅ (HTTPS to homeserver) | ✅ (WSS to relay) | ✅ (HTTPS to PDS) | Varies ⁸ | ✅ (HTTPS to pod) | ✅ (Noise protocol) | ✅ (HTTPS) | ✅ (TLS to broker) | ✅ (HTTPS to forge) ¹⁵ | ✅ (TLS 1.3 via QUIC/iroh) |
-| **E2E encryption** | ❌ ⁹ | Configurable ¹⁰ | ❌ ¹¹ | ❌ | ❌ | ❌ | Configurable ¹² | ❌ | ✅ (wallet-level) | ❌ ¹⁵ | ❌ ²¹ |
+| **E2E encryption** | ❌ ⁹ | ❌ ¹⁰ | ❌ ¹¹ | ❌ | ❌ | ❌ | ❌ ¹² | ❌ | ✅ (wallet-level) ²⁴ | ❌ ¹⁵ | ❌ ²¹ |
 | **Content signing** | ✅ (Holochain DHT) | ✅ (AD4M proof) | ✅ (Schnorr BIP-340) | ✅ (AT repo signing) | ✅ (content-addressed) | ✅ (AD4M proof) | ✅ (feed signature) | ✅ (HTTP Signatures) | ✅ (AD4M proof) | ✅ (AD4M proof + commit hash chain) | ✅ (Ed25519 ops + AD4M proof) |
-| **Data at rest** | Encrypted (conductor DB) | Server-controlled | Relay-controlled | PDS-controlled | Public (content-addressed) | Pod-controlled | Configurable ¹² | Server-controlled | Encrypted (wallet) | Filesystem ACL (executor data dir) | SQLite op store (gateway) |
+| **Data at rest** | Encrypted (conductor DB) | Server-controlled | Relay-controlled | PDS-controlled | Public (content-addressed) | Pod-controlled | Feed blocks (gateway) ¹² | Server-controlled | Encrypted (wallet) | Filesystem ACL (executor data dir) | SQLite op store (gateway) |
 | **Data deletion** | ❌ (DHT, eventual) | ✅ (redaction) | ✅ (replaceable events) | ✅ (repo delete) | ❌ (content-addressed) | ✅ (resource delete) | ❌ (append-only) | ✅ (Delete activity) | ✅ (CRDT remove) | ✅ (forward-inverse commit; history preserved) | ❌ (append-only; tombstone ops) |
 
 ⁸ Kubo API is typically HTTP (localhost); swarm connections use libp2p encryption.
 ⁹ DHT entries are public to the network; the DNA hash acts as a namespace boundary, not an encryption boundary.
-¹⁰ Matrix language has E2EE settings (`encryption.enabled`), wrapping content in encrypted room events. Requires Olm/Megolm key exchange.
+¹⁰ Matrix exposes an `encryption.enabled` setting (`src/settings.ts`) but it is declared and never wired to any encryption code — and it could not protect the links even if it were. AD4M links are written as **state events** (`dev.ad4m.link`, keyed by link-hash `state_key`), and Matrix's Megolm E2EE encrypts only **timeline message events**, never state events: the homeserver must read room state to run state-resolution-v2. So the authoritative links are always homeserver-readable; any encryption would touch only the Channel-B `m.room.message` projection, not the links themselves.
 ¹¹ Nostr supports NIP-04/NIP-44 encrypted DMs at the protocol level, but the link language currently uses public events (kind:9078).
-¹² Hypercore language supports symmetric key encryption of feed blocks (`encryption.ts`). Peers must share the key out-of-band.
-²¹ p2panda ships an optional data-encryption layer (MLS-style groups); the link language does not yet enable it, so operations are signed but transmitted in cleartext CBOR to topic subscribers.
+¹² Hypercore's `encryption.ts` is unwired demonstration code — a weak XOR cipher never called from the commit or sync path, with the key supplied manually out-of-band and no AD4M-derived key or group-key management. Link data is therefore neither encrypted in transit nor at rest; the module survives only in isolated unit tests.
+²¹ p2panda ships an optional data-encryption layer (MLS-style groups), but this link language does not enable it and provides no AD4M group-key management to drive it, so operations are signed but transmitted as cleartext CBOR to topic subscribers.
+
+²⁴ NextGraph's end-to-end encryption is a property of the **NextGraph stack**, not of this link language: documents live in a password-encrypted wallet and the SDK syncs them through brokers designed as untrusted ciphertext relays. This language adds no cryptography of its own — it inherits whatever the wallet/broker provide and does not itself enforce broker opacity. Caveat within AD4M's trust boundary: the language reaches its co-located gateway over plaintext localhost HTTP, so the encryption boundary begins at the gateway's wallet, not at the language.
 
 ---
 
@@ -83,7 +85,7 @@ What each language implements from the AD4M Language Interface.
 | **↳ merge authority** | scribe | state-resolution-v2 | OR-Set | MST + OR-Set | OR-Set | OR-Set | Autobase | OR-Set | native CRDT | OR-Set + git-merge | p2panda partial order |
 | **perspective-query** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ + 3 custom kinds ¹⁸ | ✅ |
 | **peers** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ |
-| **telepresence** | ✅ (native DHT) | ✅ (Presence API) | ✅ (ephemeral events) | ❌ | ✅ (PubSub) | ❌ | ✅ (Hyperswarm peers) | ❌ | ❌ | ❌ | ❌ |
+| **telepresence** | ✅ (native DHT) | ✅ (Presence API) | ✅ (ephemeral events) | ❌ | ✅ (PubSub) | ❌ | ✅ (Hyperswarm peers) | ❌ | ❌ | ❌ | ✅ (ephemeral_stream) |
 | **dual-language** | N/A (primary) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | **sync modes** | Bidirectional | Bi / Pub / Sub | Bi / Pub / Sub | Bi / Pub / Sub | Bi / Pub / Sub | Bi / Pub / Sub | Bi / Pub / Sub | Bi / Pub / Sub | Bidirectional | Bi (GitHub) / out-of-band (Radicle) ¹⁷ | Bidirectional |
 
@@ -120,8 +122,9 @@ C1 has also been **run end-to-end for Git** (a dependency-light co-located git-d
 - **Matrix**: Presence API (`/_matrix/client/v3/presence`) + to-device messages for signalling
 - **Nostr**: Ephemeral events (kind 20042-20044, NIP-16) via WebSocket subscriptions
 - **Hypercore**: Hyperswarm peer tracking via sidecar gateway REST API
+- **peer2panda**: p2panda's native `ephemeral_stream` — a non-persisted, online-only, signed gossip overlay on a topic derived as `BLAKE3(op_topic + ":telepresence")`, structurally separate from the op-log so presence traffic **cannot** move `currentRevision` (the ephemeral invariant holds by construction). Online status, directed signals, and broadcasts ride the sidecar gateway's REST API; the gateway's node has one signing key, so the AD4M DID travels inside each payload and the gateway routes by DID. The inbox is a 1-based monotonic `seq` cursor polled each sync cycle. Delivery is **best-effort** — ephemeral gossip has no store-and-forward, so a signal can drop during mesh warmup and must be re-sent if it has to arrive. **Live two-node verified** (two mDNS-discovered gateways): peers cross-visible both directions, directed signal delivered to the addressee only, broadcast delivered, and the op-log revision + opCount unchanged by all presence traffic.
 
-AT Proto, IPFS, Solid, ActivityPub, NextGraph, and peer2panda lack a real-time bidirectional channel suitable for presence — AT Proto's firehose is one-way, IPFS PubSub is experimental, Solid notifications are container-level, AP is HTTP push only, NextGraph does not yet expose ephemeral messaging APIs to the client SDK, and peer2panda's gossip overlay could carry ephemeral signals but the link language does not yet expose them.
+AT Proto, IPFS, Solid, ActivityPub, and NextGraph lack a real-time bidirectional channel suitable for presence — AT Proto's firehose is one-way, IPFS PubSub is experimental, Solid notifications are container-level, AP is HTTP push only, and NextGraph does not yet expose ephemeral messaging APIs to the client SDK.
 
 **Dual-language** = can coexist alongside Holochain (p-diff-sync) in the same Neighbourhood, with origin tracking to prevent echo loops. Holochain is the primary language, so dual-language doesn't apply to it.
 
@@ -223,10 +226,10 @@ For building new Expression Languages, see [`coasys/ad4m-expression-language-tem
 | If you need... | Use |
 |---|---|
 | Fully P2P, no infrastructure | **Holochain**, **Hypercore**, **NextGraph**, or **peer2panda** |
-| Real-time telepresence (presence, signals) | **Holochain**, **Matrix**, **Nostr**, **IPFS**, or **Hypercore** |
+| Real-time telepresence (presence, signals) | **Holochain**, **Matrix**, **Nostr**, **IPFS**, **Hypercore**, or **peer2panda** |
 | Human-readable data in native apps | **Matrix**, **Nostr**, **AT Proto**, **Solid**, or **ActivityPub** |
 | Sovereign identity (no server authority) | **Holochain**, **Nostr**, **IPFS**, **Hypercore**, **NextGraph**, or **peer2panda** |
-| End-to-end encryption | **Matrix** (Olm/Megolm), **Hypercore** (symmetric key), or **NextGraph** (wallet-level) |
+| End-to-end encryption | **NextGraph** (wallet-level — inherited from the NextGraph stack, not enforced by the language; see ²⁴) |
 | Largest existing network reach | **ActivityPub** (Fediverse) or **Nostr** |
 | W3C standards compliance | **Solid** (LDP + RDF) or **ActivityPub** (W3C Rec) |
 | Content-addressed / immutable data | **IPFS**, **Holochain**, or **peer2panda** |
