@@ -277,6 +277,41 @@ export const CONVERGENCE_LANGUAGES: ConvergenceLanguage[] = [
       return { NEIGHBOURHOOD_META: "{}" };
     },
   },
+
+  {
+    // ActivityPub — the diff-DAG is emulated inside the activity stream: each
+    // DAG node is a `Create{Note}` carrying an `ad4m:Diff` tag (content-hash id +
+    // prev pointers + removals) and one `ad4m:Link` tag per addition. Convergence
+    // is the OR-Set fold over that DAG, keyed by link hash. Co-located C1 rides a
+    // dependency-free group-actor shim (infra/ap-group-shim.mjs): every agent
+    // POSTs its diff activity to the group inbox, the shim republishes it to the
+    // shared group outbox, and both agents pull + fold via syncFromOutbox — the
+    // real Fediverse group fan-out pattern (Lemmy/Guppe/Mobilizon). All GROUP_*
+    // URLs derive from the neighbourhood id, so no provisioning step is needed.
+    id: "ap",
+    bundlePath: resolve(WORKSPACE_ROOT, "ap-link-language/build/bundle.js"),
+    possibleTemplateParams: [
+      "GROUP_ACTOR_URL",
+      "GROUP_INBOX_URL",
+      "GROUP_OUTBOX_URL",
+      "FEDERATION_DOMAIN",
+      "NEIGHBOURHOOD_META",
+    ],
+    backend: {
+      compose: "shim (node infra/ap-group-shim.mjs on :7791)",
+      healthTcp: { host: "127.0.0.1", port: 7791 },
+    },
+    makeTemplateData(neighbourhoodId: string): Record<string, string> {
+      const groupActorUrl = `http://127.0.0.1:7791/ap/v1/groups/${neighbourhoodId}`;
+      return {
+        GROUP_ACTOR_URL: groupActorUrl,
+        GROUP_INBOX_URL: `${groupActorUrl}/inbox`,
+        GROUP_OUTBOX_URL: `${groupActorUrl}/outbox`,
+        FEDERATION_DOMAIN: "127.0.0.1:7791",
+        NEIGHBOURHOOD_META: "{}",
+      };
+    },
+  },
 ];
 
 export function getConvergenceLanguage(id: string): ConvergenceLanguage | undefined {
