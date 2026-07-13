@@ -1,17 +1,40 @@
-# IPFS daemon — kubo
-# Single shared node for the C1 convergence scenario: both executors talk to
-# the SAME Kubo HTTP API (5001), so head-announce pubsub is delivered locally
-# and no swarm/gateway federation is needed. Only 5001 is published to avoid
-# colliding with whatever already holds host 8080 (the kubo gateway).
+# IPFS (Kubo) — TWO genuinely separate nodes for the C1 convergence scenario.
 #
-# Pubsub MUST be enabled explicitly: the link language announces DAG heads over
-# an IPFS pubsub topic, and kubo ships pubsub disabled ("run daemon with
-# --enable-pubsub-experiment"). This is the IPFS analogue of strfry's
-# reject-all default write-policy — invisible to unit tests, fatal to live sync.
+# Each node has its OWN blockstore, peer id, and swarm, so the two C1 agents run
+# against genuinely different IPFS nodes — the honest cross-node topology the
+# wind tunnel needs. They share one docker network and are swarm-connected on
+# boot (by the pubsub-bridge sidecar's PEER_NODES step) so their gossipsub
+# meshes join.
+#
+# Why the sidecar (ipfs-link-language/gateway) and not direct API access:
+#   1. The executor's httpFetch buffers + UTF-8-decodes the whole response body,
+#      so an in-sandbox language can PUBLISH to a pubsub topic but can never hold
+#      a long-lived `pubsub/sub` receive stream. The sidecar owns that streaming
+#      and serves messages back via a pollable GET /messages.
+#   2. Convergence rides pubsub, NOT bitswap: on Kubo 0.42.0 two directly-peered
+#      nodes never negotiate `/ipfs/bitswap`, so a peer's commit BLOCK cannot be
+#      fetched cross-node (dag/get times out ~30-50s). The language publishes each
+#      commit body INLINE over a per-neighbourhood diff topic instead; blocks are
+#      still written locally so the LOCAL head CID is a real content address.
+#   3. The C1 harness templates ONE bundle into both agents, so the bundle cannot
+#      bake a per-agent Kubo URL. Every request carries `X-Ad4m-Did`; the sidecar
+#      maps DID -> node (round-robin: first agent -> node A, second -> node B).
+#
+# Pubsub MUST be enabled explicitly (kubo ships it disabled): the diff topic is
+# an IPFS pubsub topic. --enable-namesys-pubsub keeps IPNS resolvable over pubsub
+# too. NOTE: no IPFS_PROFILE=server here — the server profile's connection gater
+# BLOCKS dialing private-range addresses (172.16/12), which is exactly the
+# docker-network address the two nodes must dial to peer. The default profile
+# permits it.
+#
+# Host ports: node A API on 5001, node B API on 5002. Both are published so the
+# host-side sidecar can forward ops to each and issue the boot-time swarm/connect
+# (the swarm DIAL itself happens node-to-node over the 172.x network, so the host
+# never needs the 4001 swarm ports).
 services:
-  ipfs-node:
+  ipfs-node-a:
     image: ipfs/kubo:latest
-    container_name: ad4m-test-ipfs
+    container_name: ad4m-test-ipfs-a
     command:
       - daemon
       - --migrate=true
@@ -20,10 +43,11 @@ services:
       - --enable-namesys-pubsub
     ports:
       - "5001:5001"
+    networks:
+      - ipfs-net
     volumes:
-      - ipfs-data:/data/ipfs
+      - ipfs-data-a:/data/ipfs
     environment:
-      - IPFS_PROFILE=server
       - IPFS_TELEMETRY=off
     restart: unless-stopped
     healthcheck:
@@ -32,5 +56,34 @@ services:
       timeout: 5s
       retries: 10
 
+  ipfs-node-b:
+    image: ipfs/kubo:latest
+    container_name: ad4m-test-ipfs-b
+    command:
+      - daemon
+      - --migrate=true
+      - --agent-version-suffix=docker
+      - --enable-pubsub-experiment
+      - --enable-namesys-pubsub
+    ports:
+      - "5002:5001"
+    networks:
+      - ipfs-net
+    volumes:
+      - ipfs-data-b:/data/ipfs
+    environment:
+      - IPFS_TELEMETRY=off
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "ipfs id || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+networks:
+  ipfs-net:
+    driver: bridge
+
 volumes:
-  ipfs-data:
+  ipfs-data-a:
+  ipfs-data-b:

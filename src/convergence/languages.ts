@@ -108,9 +108,24 @@ export const CONVERGENCE_LANGUAGES: ConvergenceLanguage[] = [
   },
 
   {
-    // IPFS (Kubo) — diff-DAG blocks addressed by CID, heads announced over
-    // pubsub. NEIGHBOURHOOD_URL is the per-neighbourhood pubsub topic both
-    // agents subscribe to; only IPFS_API_URL is strictly required to connect.
+    // IPFS (Kubo) — the diff-commit DAG is addressed by CID; convergence rides
+    // pubsub, NOT bitswap. On Kubo 0.42.0 two directly-peered nodes never
+    // negotiate /ipfs/bitswap, so a peer's commit BLOCK can't be fetched
+    // cross-node; instead each new commit's FULL body is published INLINE over a
+    // per-neighbourhood diff topic and folded through the existing OR-Set DAG
+    // walk (blocks are still written locally so the LOCAL head CID is real).
+    //
+    // Two genuinely separate Kubo nodes (docker-compose.ipfs.yml: node A :5001,
+    // node B :5002, peered on a docker network) sit behind ONE pubsub-bridge
+    // sidecar (ipfs-link-language/gateway, `npm start` on :7793). The sidecar
+    // owns the pubsub/sub receive stream the sandbox can't hold and routes each
+    // agent DID to its own node (X-Ad4m-Did header). Both agents template the
+    // SAME bundle, so SIDECAR_URL is identical for both — the per-agent split
+    // happens inside the sidecar, not the template.
+    //
+    // healthTcp probes the sidecar (:7793): it can only be up once both nodes
+    // are up and peered, so it's the correct single readiness gate for the whole
+    // IPFS backend.
     id: "ipfs",
     bundlePath: resolve(WORKSPACE_ROOT, "ipfs-link-language/build/bundle.js"),
     possibleTemplateParams: [
@@ -120,15 +135,22 @@ export const CONVERGENCE_LANGUAGES: ConvergenceLanguage[] = [
       "PINNING_SERVICE_URL",
       "NEIGHBOURHOOD_META",
       "NEIGHBOURHOOD_URL",
+      "SIDECAR_URL",
     ],
     backend: {
-      compose: "docker-compose.ipfs.yml",
-      healthTcp: { host: "127.0.0.1", port: 5001 },
+      compose:
+        "docker-compose.ipfs.yml (two Kubo nodes) + sidecar (ipfs-link-language/gateway, npm start on :7793)",
+      healthTcp: { host: "127.0.0.1", port: 7793 },
     },
     makeTemplateData(neighbourhoodId: string): Record<string, string> {
       return {
+        // IPFS_API_URL is the base the language builds `/api/v0/...` URLs from;
+        // the SidecarTransport rewrites those to the sidecar, so this only needs
+        // to be the (node-A) URL the template was authored against — the sidecar
+        // re-routes per DID regardless.
         IPFS_API_URL: "http://127.0.0.1:5001",
         IPFS_GATEWAY_URL: "http://127.0.0.1:8080",
+        SIDECAR_URL: "http://127.0.0.1:7793",
         NEIGHBOURHOOD_URL: `neighbourhood://${neighbourhoodId}`,
         NEIGHBOURHOOD_META: "{}",
       };

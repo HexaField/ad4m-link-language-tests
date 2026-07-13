@@ -107,6 +107,22 @@ JS bundle the executor installs), `possibleTemplateParams`,
 `makeTemplateData(neighbourhoodId)`, and optional `backend { compose, healthTcp }`.
 The scenario reads everything else from there.
 
+### IPFS is the two-node backend (operational note)
+
+Unlike every other C1 backend (one shared server the co-located agents both
+hit), IPFS runs **two genuinely separate Kubo nodes** — `infra/docker-compose.ipfs.yml`
+brings up node A (`:5001`) and node B (`:5002`), swarm-peered with distinct
+blockstores — behind ONE **pubsub-bridge sidecar** (`ipfs-link-language/gateway`,
+`npm start` on `:7793`). The sidecar's `healthTcp` (`:7793`) is the single
+readiness gate: it can only be up once both nodes are up and peered. The sidecar
+routes each agent's DID to its own node (`X-Ad4m-Did`), so the same templated
+bundle drives both nodes. Bring-up order: two Kubo nodes → peer them → start the
+sidecar → run C1. Convergence rides **pubsub inline-diffs, not bitswap** (bitswap
+does not cross-node on Kubo 0.42.0). The four transport defects this run surfaced
+(merge-not-inlined, Node keepAliveTimeout race, Deno `allow_env:none`, bounded
+`dag/get`) live in the [ipfs-link-language](https://github.com/coasys/ipfs-link-language)
+`AGENTS.md` and CAPABILITIES.md.
+
 ## Known gotchas (load-bearing — read before debugging convergence)
 
 These are the three real bugs the convergence harness surfaced. Each one
