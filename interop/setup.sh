@@ -25,7 +25,7 @@ header "AD4M Link Language Interop — Pre-warm"
 # All backends with provisionable infra. Protocols with no external infra
 # (activitypub, git, expression-*, holochain) are self-contained in the executor
 # and intentionally absent here.
-PREWARM_PROTOS=(nostr matrix solid atproto ipfs hypercore nextgraph peer2panda)
+PREWARM_PROTOS=(nostr matrix solid atproto ipfs hypercore nextgraph peer2panda anytype)
 
 UP=0
 TOTAL=${#PREWARM_PROTOS[@]}
@@ -55,7 +55,7 @@ header "Checking AD4M Executor"
 if wait_executor 15; then
     header "Verifying Language Installations"
     for lang_var in LANG_MATRIX LANG_ATPROTO LANG_SOLID LANG_IPFS LANG_NOSTR \
-                    LANG_HYPERCORE LANG_NEXTGRAPH LANG_PEER2PANDA; do
+                    LANG_HYPERCORE LANG_NEXTGRAPH LANG_PEER2PANDA LANG_ANYTYPE; do
         lang_addr="${!lang_var:-}"
         lang_name="${lang_var#LANG_}"
         [[ -z "$lang_addr" ]] && { warn "$lang_name language address not set (\$$lang_var)"; continue; }
@@ -81,7 +81,7 @@ echo ""
 echo "Run individual tests (each is self-contained — reuses the pre-warm):"
 echo "  ./verify-nostr.sh   ./verify-matrix.sh    ./verify-solid.sh"
 echo "  ./verify-atproto.sh ./verify-ipfs.sh      ./verify-hypercore.sh"
-echo "  ./verify-nextgraph.sh  ./verify-peer2panda.sh"
+echo "  ./verify-nextgraph.sh  ./verify-peer2panda.sh  ./verify-anytype.sh"
 echo ""
 echo "Or run all:"
 echo "  for f in verify-*.sh; do ./\$f; done && ./teardown.sh"

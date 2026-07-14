@@ -79,8 +79,8 @@ _infra_wait() {
 # git, expression-*) return "none" and infra_ensure is a no-op for them.
 _infra_kind() {
     case "$1" in
-        nostr|matrix|solid|atproto|ipfs) echo docker ;;
-        hypercore|nextgraph|peer2panda)  echo proc ;;
+        nostr|matrix|solid|atproto|ipfs)        echo docker ;;
+        hypercore|nextgraph|peer2panda|anytype) echo proc ;;
         *)                               echo none ;;
     esac
 }
@@ -100,6 +100,7 @@ _infra_health() {
         hypercore)  _infra_tcp localhost "${HYPERCORE_PORT:-7778}" ;;
         nextgraph)  _infra_tcp localhost "${NEXTGRAPH_PORT:-7779}" ;;
         peer2panda) _infra_tcp localhost "${PEER2PANDA_PORT:-7780}" ;;
+        anytype)    _infra_http "http://localhost:${ANYTYPE_PORT:-7794}/status" ;;
         *) return 1 ;;
     esac
 }
@@ -109,6 +110,7 @@ _infra_proc_port() {
         hypercore)  echo "${HYPERCORE_PORT:-7778}" ;;
         nextgraph)  echo "${NEXTGRAPH_PORT:-7779}" ;;
         peer2panda) echo "${PEER2PANDA_PORT:-7780}" ;;
+        anytype)    echo "${ANYTYPE_PORT:-7794}" ;;
         *) echo "" ;;
     esac
 }
@@ -119,6 +121,7 @@ _infra_proc_dir() {
         hypercore)  echo "${HYPERCORE_GATEWAY_DIR:-$ws/hypercore-link-language/gateway}" ;;
         nextgraph)  echo "${NEXTGRAPH_GATEWAY_DIR:-$ws/nextgraph-link-language/gateway}" ;;
         peer2panda) echo "${PEER2PANDA_GATEWAY_DIR:-$ws/peer2panda-link-language/gateway}" ;;
+        anytype)    echo "${ANYTYPE_GATEWAY_DIR:-$ws/anytype-link-language/gateway}" ;;
         *) echo "" ;;
     esac
 }
@@ -135,6 +138,14 @@ _infra_proc_cmd() {
             local bin="$dir/target/release/peer2panda-gateway"
             [[ -x "$bin" ]] || return 1
             echo "$bin" ;;
+        anytype)
+            # Go sidecar: prefer the built binary (fast start); a cold `go run .`
+            # would recompile the large any-sync dep tree past the 60s proc wait.
+            # The binary reads ANYTYPE_GATEWAY_ADDR (host:port), not PORT.
+            local bin="$dir/anytype-gateway" aport
+            [[ -x "$bin" ]] || return 1
+            aport="$(_infra_proc_port anytype)"
+            echo "env ANYTYPE_GATEWAY_ADDR=127.0.0.1:$aport $bin" ;;
         *) return 1 ;;
     esac
 }
