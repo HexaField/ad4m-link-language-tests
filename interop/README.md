@@ -233,7 +233,7 @@ The Hypercore language communicates with the sidecar gateway via `httpFetch`. Th
 |-----------------|--------------------------------------------|
 | Service         | Custom Go gateway embedding any-sync (NOT Docker) |
 | Port            | 7794                                        |
-| Language        | *(pending publish — anytype-link-language)* |
+| Language        | [anytype-link-language](https://github.com/coasys/anytype-link-language) |
 | Data format     | any-sync `objecttree` TreeChange (native change-DAG) |
 | Native app      | Anytype desktop (render needs `anytype-heart`) |
 
@@ -433,7 +433,7 @@ which is distinct from `interop/infra/` (Matrix config only).
 | Hypercore | [hypercore-link-language](https://github.com/HexaField/hypercore-link-language) | `verify-hypercore.sh` |
 | ActivityPub | [ap-link-language](https://github.com/HexaField/ap-link-language) | `verify-activitypub.sh` |
 | NextGraph | [nextgraph-link-language](https://github.com/HexaField/nextgraph-link-language) | `verify-nextgraph.sh` |
-| Anytype | anytype-link-language *(pending publish)* | `verify-anytype.sh` |
+| Anytype | [anytype-link-language](https://github.com/coasys/anytype-link-language) | `verify-anytype.sh` |
 | Holochain | [ad4m/bootstrap-languages/p-diff-sync](https://github.com/coasys/ad4m/tree/dev/bootstrap-languages/p-diff-sync) | (multi-device only) |
 
 New language? Start from the [ad4m-link-language-template](https://github.com/HexaField/ad4m-link-language-template).
