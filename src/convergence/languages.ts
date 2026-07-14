@@ -379,6 +379,40 @@ export const CONVERGENCE_LANGUAGES: ConvergenceLanguage[] = [
       };
     },
   },
+
+  {
+    // Anytype (any-sync) — the ONLY backend riding a genuine NATIVE convergent
+    // change-DAG. any-sync's objecttree is a signed, content-addressed,
+    // multi-parent change graph with deterministic lexid total-ordering, so
+    // convergence here IS Anytype's own CRDT — no synthesized hash-DAG (unlike
+    // nostr/ap/matrix, which emulate a DAG over a non-DAG substrate). The
+    // any-sync stack is Go and can't run in the Deno/WASM executor sandbox, so a
+    // Go sidecar gateway (anytype-link-language/gateway, built binary on :7794)
+    // owns the protocol AND the OR-Set fold over the change-DAG; the language is
+    // a thin HTTP mirror that only reflects the gateway's folded /sync output.
+    // Two agents behind one gateway URL are two genuinely separate any-sync
+    // clients, routed by the X-Ad4m-Did header (same per-DID pattern as the ipfs
+    // sidecar). Both agents template the SAME bundle → same gateway URL + same
+    // space id; the identity split happens inside the gateway. ANYTYPE_SPACE_ID
+    // = the neighbourhood id; the gateway maps it to a real any-sync spaceId
+    // (create-or-join with an AnyoneCanJoin ACL), so no provisioning step is
+    // needed. healthTcp probes the gateway (:7794): it is the single readiness
+    // gate for the whole Anytype backend.
+    id: "anytype",
+    bundlePath: resolve(WORKSPACE_ROOT, "anytype-link-language/build/bundle.js"),
+    possibleTemplateParams: ["ANYTYPE_GATEWAY_URL", "ANYTYPE_SPACE_ID", "NEIGHBOURHOOD_META"],
+    backend: {
+      compose: "gateway (anytype-link-language/gateway, go build -o anytype-gateway . on :7794)",
+      healthTcp: { host: "127.0.0.1", port: 7794 },
+    },
+    makeTemplateData(neighbourhoodId: string): Record<string, string> {
+      return {
+        ANYTYPE_GATEWAY_URL: "http://127.0.0.1:7794",
+        ANYTYPE_SPACE_ID: neighbourhoodId,
+        NEIGHBOURHOOD_META: "{}",
+      };
+    },
+  },
 ];
 
 export function getConvergenceLanguage(id: string): ConvergenceLanguage | undefined {
