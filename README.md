@@ -105,10 +105,11 @@ Proves each AD4M link language correctly reads/writes to its native protocol bac
 | **Holochain** | [p-diff-sync](https://github.com/coasys/ad4m/tree/dev/bootstrap-languages/p-diff-sync) | Kitsune (Iroh) | [Holochain Launcher](https://www.holochain.org/) |
 | **Git** | [git-link-language](https://github.com/coasys/git-link-language) | Local filesystem (Git repo) ¹ | [`git` CLI](https://git-scm.com/) |
 | **peer2panda** | [peer2panda-link-language](https://github.com/coasys/peer2panda-link-language) | HTTP → sidecar gateway (Rust p2panda / iroh QUIC) | [p2panda](https://p2panda.org) |
+| **Anytype** | anytype-link-language *(pending publish)* | HTTP → sidecar gateway (Go any-sync) | [Anytype](https://anytype.io) |
 
 ¹ v1 is local-first: the convergent OR-Set remote-merge logic is wired and tested, but the automated `git fetch`/`push` transport gates on a binary HTTP host enhancement, so peers exchange commits out-of-band (shared filesystem, external `git pull`) in v1. See [Remote sync](https://github.com/coasys/git-link-language/blob/main/README.md#remote-sync).
 
-See [`CAPABILITIES.md`](CAPABILITIES.md) for a full capability matrix across all 11 languages.
+See [`CAPABILITIES.md`](CAPABILITIES.md) for a full capability matrix across all 12 languages.
 
 #### Single-Device Backend Verification (`interop/`)
 
@@ -125,6 +126,7 @@ cd interop
 ./verify-hypercore.sh # Test Hypercore → sidecar gateway
 ./verify-git.sh     # Test Git → local repo (no Docker, no daemon)
 ./verify-peer2panda.sh # Test peer2panda → Rust sidecar gateway (no Docker)
+./verify-anytype.sh # Test Anytype → Go sidecar gateway (any-sync, no Docker)
 ./teardown.sh       # Stop all services
 
 # Expression language verification (no Docker required)

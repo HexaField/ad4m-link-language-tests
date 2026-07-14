@@ -25,6 +25,7 @@ This document describes the external infrastructure needed for each Link Languag
 | Hypercore | Sidecar gateway | ✅ Node.js | — | Minimal |
 | NextGraph | Sidecar gateway | ✅ Node.js | — | Minimal |
 | peer2panda | Sidecar gateway | ✅ Rust binary | — | Minimal |
+| Anytype | Sidecar gateway | ✅ Go binary | — | Minimal |
 
 ---
 
@@ -318,6 +319,62 @@ Hypercore data is append-only and stored locally by the gateway. Each peer maint
 ### Notes
 - The gateway is lightweight (~50MB RAM) but must stay running
 - Consider increasing `SYNC_WAIT_SECONDS` for initial Hypercore tests (DHT discovery takes 5-15s)
+
+---
+
+## Anytype
+
+### What's Needed
+A **sidecar gateway** — a Go process that embeds the `any-sync` stack (`objecttree` / `commonspace` / ACL) and exposes a small HTTP API the link language talks to via `httpFetch`. `any-sync` is Go and cannot run inside the executor's Deno/WASM sandbox, so the gateway owns all protocol state; the language is a thin HTTP mirror of its folded object tree.
+
+Two agents behind one gateway URL are two separate any-sync clients, routed by the `X-Ad4m-Did` header — the same per-DID pattern as the IPFS sidecar.
+
+### Self-Hosted (Required)
+
+The gateway is a standalone Go binary built from the `anytype-link-language` repo's `gateway/` directory (not a Docker container):
+
+```bash
+cd $WORKSPACE/anytype-link-language/gateway
+go build -o anytype-gateway .
+ANYTYPE_GATEWAY_ADDR=127.0.0.1:7794 ./anytype-gateway
+```
+
+`verify-anytype.sh` spawns/reuses this automatically via `infra-lib.sh` (`infra_ensure anytype`), preferring the prebuilt binary — a cold `go run .` would recompile the large any-sync dependency tree past the 60s process-wait. Point `ANYTYPE_GATEWAY_DIR` at an existing checkout to override the default (`$WORKSPACE/anytype-link-language/gateway`).
+
+**Ports:**
+| Port | Service | Protocol |
+|---|---|---|
+| 7794 | Gateway HTTP API | TCP (HTTP) |
+
+Override with `ANYTYPE_PORT`. The binary reads `ANYTYPE_GATEWAY_ADDR` (`host:port`), **not** `PORT`.
+
+### Gateway API
+
+Every call carries `X-Ad4m-Did: <agent did>`; the gateway maps the neighbourhood id to a real any-sync `spaceId`.
+
+- `GET /status` — gateway + space liveness (nodeId, revision, heads, cursor)
+- `POST /space/open` — map neighbourhood id → any-sync space (create-or-join, idempotent)
+- `GET /links` — folded link set, optionally filtered
+- `POST /diff` — append one `TreeChange` for a `PerspectiveDiff`
+- `GET /sync` — walk the change-DAG in `lexid` order past a cursor → folded additions/removals
+
+### Network Requirements
+- The language reaches the gateway over local HTTP (single port, 7794 by default)
+- A self-hosted any-sync network (coordinator / sync / file nodes) is only needed for **cross-host** federation; the co-located C1 model runs both clients inside one gateway process with an in-process relay, so no external any-sync nodes are required
+- For a real multi-host deployment, the gateway connects outbound to any-sync sync-nodes (NAT-traversed by the any-sync network)
+
+### Infrastructure Cost
+**Minimal.** Single Go process (~50-80MB RAM); an embedded `any-store` database on disk holds the object trees.
+
+### Persistence
+Object-tree changes are append-only and content-addressed, stored by the gateway's embedded `any-store` (a git-ignored data dir). Each identity's client persists across restarts; convergence re-folds from the change-DAG.
+
+### License Isolation (non-negotiable)
+The gateway depends **only** on `any-sync` (MIT) + `any-store` (permissive). `anytype-heart` — needed only to render objects in the real Anytype desktop client — is **Any-Source-Available licensed (ASAL 1.0, not OSI)** and is **not** vendored, so native-client render is out of scope; the gateway proves convergence on the `any-sync` substrate itself.
+
+### Notes
+- The gateway must stay running for the duration of a test
+- A stale gateway binary silently serves old semantics — rebuild (`go build`) after any gateway change
 
 ---
 
