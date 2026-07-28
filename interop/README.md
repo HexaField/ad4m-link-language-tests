@@ -42,8 +42,9 @@ and local backends. There is no remote runner and no SSH.
 - **jq**, **curl**, **nc** (netcat)
 - **Docker** + **Docker Compose v2** — for the docker-backed protocols
 - **Node.js** — for the Node sidecar gateways (Hypercore, NextGraph)
-- **Rust** (cargo) — for the peer2panda sidecar gateway
+- **Rust** (cargo) — for the peer2panda and Freenet sidecar gateways
 - **Go** — for the Anytype sidecar gateway (any-sync)
+- **`freenet` + `fdev`** (`cargo install freenet fdev`) — the Freenet node binary + contract (WASM) build tool
 - An **AD4M executor** running on `ws://127.0.0.1:12000` (admin token `test123`),
   with the link languages under test installed. The executor is the
   system-under-test — it is provisioned externally, not by these scripts.
@@ -58,6 +59,8 @@ Ports used by the self-provisioned backends (each script only touches its own):
 | 3000 | Solid (CSS)        | 7779 | NextGraph gateway      |
 |      |                    | 7780 | peer2panda gateway     |
 |      |                    | 7794 | Anytype gateway        |
+|      |                    | 7795 | Freenet gateway        |
+|      |                    | 7509 | Freenet node (WS)      |
 
 ## Architecture
 
@@ -241,6 +244,20 @@ The Hypercore language communicates with the sidecar gateway via `httpFetch`. Th
 
 The Anytype language communicates with a sidecar gateway via `httpFetch`. The gateway embeds the `any-sync` Go stack (`objecttree` / `commonspace` / ACL) and folds an OR-Set keyed by link hash; two agents behind one gateway are two separate any-sync clients routed by the `X-Ad4m-Did` header. This follows the same sidecar pattern as Hypercore and NextGraph. The gateway depends only on `any-sync` (MIT) + `any-store`; `anytype-heart` is **not** vendored (ASAL 1.0), so native-client render is out of scope.
 
+### Freenet (freenet.org)
+
+| Item            | Value                                      |
+|-----------------|--------------------------------------------|
+| Service         | Unmodified `freenet local` node + Rust gateway (NOT Docker) |
+| Port            | 7795 (gateway) + 7509 (node WS)             |
+| Language        | [freenet-link-language](https://github.com/coasys/freenet-link-language) |
+| Data format     | Freenet contract state — 2P-Set OR-Set (WASM `update_state` fold) |
+| Native app      | Freenet apps (contract state via the node HTTP gateway) |
+
+**Interop proof:** AD4M writes links → one contract `Update` (`StateDelta`) per diff is folded by the OR-Set contract in the node, materialised via the gateway `/links` and `/sync`. A second identity (distinct DID) opens the same contract and appends a native diff → AD4M sync picks it up — convergence through the shared contract state (the node's WASM runtime runs the fold), not a shim.
+
+The Freenet language communicates with a sidecar gateway via `httpFetch`. Unlike the embed-the-stack gateways (Anytype/peer2panda), Freenet's convergence lives in a **contract** (Rust → WASM) that the real node executes; the gateway only sends contract Updates and materialises the folded state (it never folds). Freenet mandates commutative contract merges, so the link-set is a 2P-Set keyed by a deterministic link hash. The gateway + contract link only `freenet-stdlib` (LGPL) and reach an unmodified `freenet` node (AGPL) over WebSocket — never linking core, so the repo stays CAL-1.0.
+
 ## Docker Compose
 
 Each docker-backed protocol has its **own** compose file in the **repo-root
@@ -274,8 +291,8 @@ docker compose -p infra -f ../infra/docker-compose.nostr.yml down -v
 
 ## Sidecar Gateways
 
-Hypercore, NextGraph, peer2panda, and Anytype are not Docker — they are sidecar
-processes spawned from each link-language repo's `gateway/` dir. `infra_ensure`
+Hypercore, NextGraph, peer2panda, Anytype, and Freenet are not Docker — they are
+sidecar processes spawned from each link-language repo's `gateway/` dir. `infra_ensure`
 starts them if the port is free, or reuses one you already have running. It will
 **not** try to build them; if the gateway isn't built, the verify script skips
 with a build hint. Build ahead of time with:
@@ -290,10 +307,14 @@ cd $WORKSPACE/peer2panda-link-language/gateway && cargo build --release
 
 # Anytype (Go binary embedding any-sync)
 cd $WORKSPACE/anytype-link-language/gateway && go build -o anytype-gateway .
+
+# Freenet (Rust gateway + WASM contract; needs `cargo install freenet fdev`)
+cd $WORKSPACE/freenet-link-language/contract && CARGO_TARGET_DIR="$PWD/target" fdev build --features contract
+cd $WORKSPACE/freenet-link-language/gateway && cargo build --release
 ```
 
 Override a gateway's location with `HYPERCORE_GATEWAY_DIR` / `NEXTGRAPH_GATEWAY_DIR`
-/ `PEER2PANDA_GATEWAY_DIR` / `ANYTYPE_GATEWAY_DIR` if your checkout lives elsewhere.
+/ `PEER2PANDA_GATEWAY_DIR` / `ANYTYPE_GATEWAY_DIR` / `FREENET_GATEWAY_DIR` if your checkout lives elsewhere.
 
 ## Configuration
 
@@ -411,6 +432,7 @@ ad4m-wind-tunnel/
     ├── verify-nextgraph.sh   # NextGraph ↔ AD4M        (sidecar gateway)
     ├── verify-peer2panda.sh  # peer2panda ↔ AD4M       (sidecar gateway)
     ├── verify-anytype.sh     # Anytype (any-sync) ↔ AD4M (sidecar gateway)
+    ├── verify-freenet.sh     # Freenet ↔ AD4M          (local node + sidecar gateway + WASM contract)
     ├── verify-activitypub.sh # ActivityPub ↔ AD4M      (no external infra)
     ├── verify-git.sh         # git ↔ AD4M              (no external infra)
     └── verify-expression-*.sh # expression-language checks (no external infra)
@@ -434,6 +456,7 @@ which is distinct from `interop/infra/` (Matrix config only).
 | ActivityPub | [ap-link-language](https://github.com/HexaField/ap-link-language) | `verify-activitypub.sh` |
 | NextGraph | [nextgraph-link-language](https://github.com/HexaField/nextgraph-link-language) | `verify-nextgraph.sh` |
 | Anytype | [anytype-link-language](https://github.com/coasys/anytype-link-language) | `verify-anytype.sh` |
+| Freenet | [freenet-link-language](https://github.com/coasys/freenet-link-language) | `verify-freenet.sh` |
 | Holochain | [ad4m/bootstrap-languages/p-diff-sync](https://github.com/coasys/ad4m/tree/dev/bootstrap-languages/p-diff-sync) | (multi-device only) |
 
 New language? Start from the [ad4m-link-language-template](https://github.com/HexaField/ad4m-link-language-template).

@@ -4,11 +4,11 @@ How each AD4M link language compares across protocol characteristics, security p
 
 ## Quick Reference
 
-|  | Holochain | Matrix | Nostr | AT Proto | IPFS | Solid | Hypercore | ActivityPub | NextGraph | Git | peer2panda | Anytype |
-|--|-----------|--------|-------|----------|------|-------|-----------|-------------|----------|-----|------------|---------|
-| **Repo** | [p-diff-sync](https://github.com/coasys/ad4m/tree/dev/bootstrap-languages/p-diff-sync) | [matrix](https://github.com/coasys/matrix-link-language) | [nostr](https://github.com/coasys/nostr-link-language) | [atproto](https://github.com/coasys/atproto-link-language) | [ipfs](https://github.com/coasys/ipfs-link-language) | [solid](https://github.com/coasys/solid-link-language) | [hypercore](https://github.com/coasys/hypercore-link-language) | [ap](https://github.com/coasys/ap-link-language) | [nextgraph](https://github.com/coasys/nextgraph-link-language) | [git](https://github.com/coasys/git-link-language) | [peer2panda](https://github.com/coasys/peer2panda-link-language) | [anytype](https://github.com/coasys/anytype-link-language) |
-| **Runtime** | WASM (Holochain) | Deno (ALDK) | Deno (ALDK) | Deno (ALDK) | Deno (ALDK) | Deno (ALDK) | Deno (ALDK) | Deno (ALDK) | Deno (ALDK) | Deno (ALDK) | Deno (ALDK) + Rust gateway | Deno (ALDK) + Go gateway |
-| **Status** | Production | Verified | Verified | Verified | Verified | Verified | Verified | Verified | Verified (v0.1, local) | Verified (v0.1) | Verified (v0.1, local) | Verified (v0.1, local) |
+|  | Holochain | Matrix | Nostr | AT Proto | IPFS | Solid | Hypercore | ActivityPub | NextGraph | Git | peer2panda | Anytype | Freenet |
+|--|-----------|--------|-------|----------|------|-------|-----------|-------------|----------|-----|------------|---------|---------|
+| **Repo** | [p-diff-sync](https://github.com/coasys/ad4m/tree/dev/bootstrap-languages/p-diff-sync) | [matrix](https://github.com/coasys/matrix-link-language) | [nostr](https://github.com/coasys/nostr-link-language) | [atproto](https://github.com/coasys/atproto-link-language) | [ipfs](https://github.com/coasys/ipfs-link-language) | [solid](https://github.com/coasys/solid-link-language) | [hypercore](https://github.com/coasys/hypercore-link-language) | [ap](https://github.com/coasys/ap-link-language) | [nextgraph](https://github.com/coasys/nextgraph-link-language) | [git](https://github.com/coasys/git-link-language) | [peer2panda](https://github.com/coasys/peer2panda-link-language) | [anytype](https://github.com/coasys/anytype-link-language) | [freenet](https://github.com/coasys/freenet-link-language) |
+| **Runtime** | WASM (Holochain) | Deno (ALDK) | Deno (ALDK) | Deno (ALDK) | Deno (ALDK) | Deno (ALDK) | Deno (ALDK) | Deno (ALDK) | Deno (ALDK) | Deno (ALDK) | Deno (ALDK) + Rust gateway | Deno (ALDK) + Go gateway | Deno (ALDK) + Rust gateway |
+| **Status** | Production | Verified | Verified | Verified | Verified | Verified | Verified | Verified | Verified (v0.1, local) | Verified (v0.1) | Verified (v0.1, local) | Verified (v0.1, local) | Verified (v0.1, local) |
 
 ---
 
@@ -16,13 +16,13 @@ How each AD4M link language compares across protocol characteristics, security p
 
 How data moves between participants.
 
-|  | Holochain | Matrix | Nostr | AT Proto | IPFS | Solid | Hypercore | ActivityPub | NextGraph | Git | peer2panda | Anytype |
-|--|-----------|--------|-------|----------|------|-------|-----------|-------------|----------|-----|------------|---------|
-| **Topology** | P2P (DHT) | Federated | Relay | Cloud/Federated | P2P (DHT) | Client-Server | P2P (DHT) | Federated | P2P (CRDT mesh) | Local-first (Git repo) ¹⁴ | P2P (gossip) | P2P (any-sync) |
-| **Infrastructure** | None (public bootstrap) | Homeserver | Relay(s) | PDS + Relay | Kubo daemon | Pod server | Sidecar gateway | None (executor built-in) | Sidecar gateway (NextGraph WASM) | None | Sidecar gateway (Rust p2panda) + iroh relays | Sidecar gateway (Go any-sync) |
-| **Self-hostable** | N/A | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | N/A | ✅ | ✅ (any Git host) | ✅ | ✅ |
-| **Works offline** | Partial ¹ | ❌ | ❌ | ❌ | Partial ² | ❌ | Partial ¹ | ❌ | ✅ (local-first CRDT) | ✅ | ✅ (local-first log) ²⁰ | ✅ (local-first DAG) |
-| **NAT traversal** | ✅ (Holochain proxy) | N/A (server) | N/A (relay) | N/A (server) | ✅ (libp2p) | N/A (server) | ✅ (Hyperswarm) | N/A (server) | ✅ (NextGraph broker) | N/A ¹⁵ | ✅ (iroh hole-punch + relay) | ✅ (any-sync sync-nodes) |
+|  | Holochain | Matrix | Nostr | AT Proto | IPFS | Solid | Hypercore | ActivityPub | NextGraph | Git | peer2panda | Anytype | Freenet |
+|--|-----------|--------|-------|----------|------|-------|-----------|-------------|----------|-----|------------|---------|---------|
+| **Topology** | P2P (DHT) | Federated | Relay | Cloud/Federated | P2P (DHT) | Client-Server | P2P (DHT) | Federated | P2P (CRDT mesh) | Local-first (Git repo) ¹⁴ | P2P (gossip) | P2P (any-sync) | P2P (small-world DHT) |
+| **Infrastructure** | None (public bootstrap) | Homeserver | Relay(s) | PDS + Relay | Kubo daemon | Pod server | Sidecar gateway | None (executor built-in) | Sidecar gateway (NextGraph WASM) | None | Sidecar gateway (Rust p2panda) + iroh relays | Sidecar gateway (Go any-sync) | Sidecar gateway (Rust) + freenet node |
+| **Self-hostable** | N/A | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | N/A | ✅ | ✅ (any Git host) | ✅ | ✅ | ✅ |
+| **Works offline** | Partial ¹ | ❌ | ❌ | ❌ | Partial ² | ❌ | Partial ¹ | ❌ | ✅ (local-first CRDT) | ✅ | ✅ (local-first log) ²⁰ | ✅ (local-first DAG) | ✅ (local node) |
+| **NAT traversal** | ✅ (Holochain proxy) | N/A (server) | N/A (relay) | N/A (server) | ✅ (libp2p) | N/A (server) | ✅ (Hyperswarm) | N/A (server) | ✅ (NextGraph broker) | N/A ¹⁵ | ✅ (iroh hole-punch + relay) | ✅ (any-sync sync-nodes) | ✅ (Freenet peers) |
 
 ¹ Local reads work; writes queue until reconnected to DHT / peers.
 ² Local pinned content readable; writes need API access.
@@ -36,12 +36,12 @@ How data moves between participants.
 
 How participants are identified and authenticated.
 
-|  | Holochain | Matrix | Nostr | AT Proto | IPFS | Solid | Hypercore | ActivityPub | NextGraph | Git | peer2panda | Anytype |
-|--|-----------|--------|-------|----------|------|-------|-----------|-------------|----------|-----|------------|---------|
-| **Native identity** | AgentPubKey (Ed25519) | MXID (`@user:server`) | npub (secp256k1) | DID (did:plc / did:web) | PeerID (libp2p) | WebID (URI) | Feed public key | Actor URI | NextGraph Wallet (Ed25519) | Git committer (DID-derived) | Ed25519 node key | Ed25519 account key |
-| **AD4M identity** | DID (mapped via zome) | DID (embedded in events) | DID (embedded in events) | DID (embedded in records) | DID (embedded in DAG) | DID (embedded in RDF) | DID (embedded in blocks) | DID (extracted from actors) | DID (embedded in triples) | DID (link expression proof + commit author) | DID (embedded in operation) | DID (header → per-agent key) |
-| **Sovereign identity** | ✅ ³ | ❌ ⁴ | ✅ | ❌ ⁵ | ✅ | ❌ ⁶ | ✅ | ❌ ⁷ | ✅ | ✅ ¹⁶ | ✅ | ✅ |
-| **Auth mechanism** | Membrane proof | Access token | Keypair (BIP-340) | App password + session | None (public API) | WebID-OIDC / token | Feed key possession | HTTP Signatures | Wallet password | AD4M agent keypair | Ed25519 operation signature | Ed25519 change signature + ACL |
+|  | Holochain | Matrix | Nostr | AT Proto | IPFS | Solid | Hypercore | ActivityPub | NextGraph | Git | peer2panda | Anytype | Freenet |
+|--|-----------|--------|-------|----------|------|-------|-----------|-------------|----------|-----|------------|---------|---------|
+| **Native identity** | AgentPubKey (Ed25519) | MXID (`@user:server`) | npub (secp256k1) | DID (did:plc / did:web) | PeerID (libp2p) | WebID (URI) | Feed public key | Actor URI | NextGraph Wallet (Ed25519) | Git committer (DID-derived) | Ed25519 node key | Ed25519 account key | Ed25519 signing key |
+| **AD4M identity** | DID (mapped via zome) | DID (embedded in events) | DID (embedded in events) | DID (embedded in records) | DID (embedded in DAG) | DID (embedded in RDF) | DID (embedded in blocks) | DID (extracted from actors) | DID (embedded in triples) | DID (link expression proof + commit author) | DID (embedded in operation) | DID (header → per-agent key) | DID (embedded in link expression) |
+| **Sovereign identity** | ✅ ³ | ❌ ⁴ | ✅ | ❌ ⁵ | ✅ | ❌ ⁶ | ✅ | ❌ ⁷ | ✅ | ✅ ¹⁶ | ✅ | ✅ | ✅ |
+| **Auth mechanism** | Membrane proof | Access token | Keypair (BIP-340) | App password + session | None (public API) | WebID-OIDC / token | Feed key possession | HTTP Signatures | Wallet password | AD4M agent keypair | Ed25519 operation signature | Ed25519 change signature + ACL | Ed25519 update signature (contract-validated) |
 
 ³ AgentPubKey is self-generated; no registration authority.
 ⁴ MXID is server-issued; identity is portable across servers only via migration.
@@ -54,13 +54,13 @@ How participants are identified and authenticated.
 
 ## Security & Encryption
 
-|  | Holochain | Matrix | Nostr | AT Proto | IPFS | Solid | Hypercore | ActivityPub | NextGraph | Git | peer2panda | Anytype |
-|--|-----------|--------|-------|----------|------|-------|-----------|-------------|----------|-----|------------|---------|
-| **Transport encryption** | ✅ (TLS to bootstrap/proxy) | ✅ (HTTPS to homeserver) | ✅ (WSS to relay) | ✅ (HTTPS to PDS) | Varies ⁸ | ✅ (HTTPS to pod) | ✅ (Noise protocol) | ✅ (HTTPS) | ✅ (TLS to broker) | ✅ (HTTPS to forge) ¹⁵ | ✅ (TLS 1.3 via QUIC/iroh) | ✅ (any-sync transport) ²⁶ |
-| **E2E encryption** | ❌ ⁹ | ❌ ¹⁰ | ❌ ¹¹ | ❌ | ❌ | ❌ | ❌ ¹² | ❌ | ✅ (wallet-level) ²⁴ | ❌ ¹⁵ | ❌ ²¹ | ❌ ²⁶ |
-| **Content signing** | ✅ (Holochain DHT) | ✅ (AD4M proof) | ✅ (Schnorr BIP-340) | ✅ (AT repo signing) | ✅ (content-addressed) | ✅ (AD4M proof) | ✅ (feed signature) | ✅ (HTTP Signatures) | ✅ (AD4M proof) | ✅ (AD4M proof + commit hash chain) | ✅ (Ed25519 ops + AD4M proof) | ✅ (Ed25519 changes + AD4M proof) |
-| **Data at rest** | Encrypted (conductor DB) | Server-controlled | Relay-controlled | PDS-controlled | Public (content-addressed) | Pod-controlled | Feed blocks (gateway) ¹² | Server-controlled | Encrypted (wallet) | Filesystem ACL (executor data dir) | SQLite op store (gateway) | any-store DB (gateway) |
-| **Data deletion** | ❌ (DHT, eventual) | ✅ (redaction) | ✅ (replaceable events) | ✅ (repo delete) | ❌ (content-addressed) | ✅ (resource delete) | ❌ (append-only) | ✅ (Delete activity) | ✅ (CRDT remove) | ✅ (forward-inverse commit; history preserved) | ❌ (append-only; tombstone ops) | ❌ (append-only; tombstone changes) |
+|  | Holochain | Matrix | Nostr | AT Proto | IPFS | Solid | Hypercore | ActivityPub | NextGraph | Git | peer2panda | Anytype | Freenet |
+|--|-----------|--------|-------|----------|------|-------|-----------|-------------|----------|-----|------------|---------|---------|
+| **Transport encryption** | ✅ (TLS to bootstrap/proxy) | ✅ (HTTPS to homeserver) | ✅ (WSS to relay) | ✅ (HTTPS to PDS) | Varies ⁸ | ✅ (HTTPS to pod) | ✅ (Noise protocol) | ✅ (HTTPS) | ✅ (TLS to broker) | ✅ (HTTPS to forge) ¹⁵ | ✅ (TLS 1.3 via QUIC/iroh) | ✅ (any-sync transport) ²⁶ | ✅ (Freenet peer transport) ²⁹ |
+| **E2E encryption** | ❌ ⁹ | ❌ ¹⁰ | ❌ ¹¹ | ❌ | ❌ | ❌ | ❌ ¹² | ❌ | ✅ (wallet-level) ²⁴ | ❌ ¹⁵ | ❌ ²¹ | ❌ ²⁶ | ❌ ²⁹ |
+| **Content signing** | ✅ (Holochain DHT) | ✅ (AD4M proof) | ✅ (Schnorr BIP-340) | ✅ (AT repo signing) | ✅ (content-addressed) | ✅ (AD4M proof) | ✅ (feed signature) | ✅ (HTTP Signatures) | ✅ (AD4M proof) | ✅ (AD4M proof + commit hash chain) | ✅ (Ed25519 ops + AD4M proof) | ✅ (Ed25519 changes + AD4M proof) | ✅ (Ed25519 updates + AD4M proof) |
+| **Data at rest** | Encrypted (conductor DB) | Server-controlled | Relay-controlled | PDS-controlled | Public (content-addressed) | Pod-controlled | Feed blocks (gateway) ¹² | Server-controlled | Encrypted (wallet) | Filesystem ACL (executor data dir) | SQLite op store (gateway) | any-store DB (gateway) | Contract state (freenet node) |
+| **Data deletion** | ❌ (DHT, eventual) | ✅ (redaction) | ✅ (replaceable events) | ✅ (repo delete) | ❌ (content-addressed) | ✅ (resource delete) | ❌ (append-only) | ✅ (Delete activity) | ✅ (CRDT remove) | ✅ (forward-inverse commit; history preserved) | ❌ (append-only; tombstone ops) | ❌ (append-only; tombstone changes) | ❌ (grow-only 2P-Set; tombstones) |
 
 ⁸ Kubo API is typically HTTP (localhost); swarm connections use libp2p encryption.
 ⁹ DHT entries are public to the network; the DNA hash acts as a namespace boundary, not an encryption boundary.
@@ -73,23 +73,25 @@ How participants are identified and authenticated.
 
 ²⁶ Anytype's `any-sync` encrypts its inter-node transport and can encrypt change payloads, but this link language adds no confidentiality of its own: it reaches its co-located gateway over plaintext localhost HTTP, and the space uses an `AnyoneCanJoin` ACL, so within AD4M's trust boundary changes are **signed but not confidential** (mirrors ²¹/²⁴). E2E is therefore ❌ — links are Ed25519-signed and integrity-checked, not encrypted end-to-end to a closed group.
 
+²⁹ Freenet encrypts its inter-peer transport, but this link language adds no confidentiality of its own: it reaches its co-located gateway over plaintext localhost HTTP and the gateway reaches the `freenet` node over a local WebSocket, and the OR-Set contract accepts any validly-signed update, so within AD4M's trust boundary changes are **signed but not confidential** (mirrors ²¹/²⁴/²⁶). Contract state is Ed25519-signed and validated by the contract's `update_state`, not encrypted end-to-end to a closed group — E2E is therefore ❌.
+
 ---
 
 ## AD4M Capabilities
 
 What each language implements from the AD4M Language Interface.
 
-|  | Holochain | Matrix | Nostr | AT Proto | IPFS | Solid | Hypercore | ActivityPub | NextGraph | Git | peer2panda | Anytype |
-|--|-----------|--------|-------|----------|------|-------|-----------|-------------|----------|-----|------------|---------|
-| **perspective-commit** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ (one commit per diff) | ✅ | ✅ (one TreeChange per diff) |
-| **perspective-sync** | ✅ (diff-DAG + scribe) | ✅ (state-events + state-res-v2) | ✅ (e-tag DAG + OR-Set) | ✅ (MST chain + OR-Set) | ✅ (multi-parent DAG + OR-Set) | ✅ (diff-resource DAG + OR-Set) | ✅ (Autobase + OR-Set) | ✅ (activity DAG + OR-Set) | ✅ (native CRDT) | ✅ ¹⁷ (commit-DAG + OR-Set) | ✅ (op-log + OR-Set) | ✅ (native change-DAG + OR-Set) |
-| **↳ currentRevision** ²² | DAG-head hash | state digest | head-event-id hash | commit-CID digest | head-CID hash | head diff-resource hash | Autobase root hash | head-activity-id hash | native commit CID | HEAD SHA | BLAKE3 op-head digest | sorted-heads SHA-256 digest |
-| **↳ merge authority** | scribe | state-resolution-v2 | OR-Set | MST + OR-Set | OR-Set | OR-Set | Autobase | OR-Set | native CRDT | OR-Set + git-merge | p2panda partial order | objecttree heads + OR-Set |
-| **perspective-query** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ + 3 custom kinds ¹⁸ | ✅ | ✅ |
-| **peers** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ | ❌ |
-| **telepresence** | ✅ (native DHT) | ✅ (Presence API) | ✅ (ephemeral events) | ❌ | ❌ ²⁵ | ❌ | ✅ (Hyperswarm peers) | ❌ | ❌ | ❌ | ✅ (ephemeral_stream) | ❌ ²⁷ |
-| **dual-language** | N/A (primary) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **sync modes** | Bidirectional | Bi / Pub / Sub | Bi / Pub / Sub | Bi / Pub / Sub | Bi / Pub / Sub | Bi / Pub / Sub | Bi / Pub / Sub | Bi / Pub / Sub | Bidirectional | Bi (GitHub) / out-of-band (Radicle) ¹⁷ | Bidirectional | Bidirectional |
+|  | Holochain | Matrix | Nostr | AT Proto | IPFS | Solid | Hypercore | ActivityPub | NextGraph | Git | peer2panda | Anytype | Freenet |
+|--|-----------|--------|-------|----------|------|-------|-----------|-------------|----------|-----|------------|---------|---------|
+| **perspective-commit** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ (one commit per diff) | ✅ | ✅ (one TreeChange per diff) | ✅ (one contract Update per diff) |
+| **perspective-sync** | ✅ (diff-DAG + scribe) | ✅ (state-events + state-res-v2) | ✅ (e-tag DAG + OR-Set) | ✅ (MST chain + OR-Set) | ✅ (multi-parent DAG + OR-Set) | ✅ (diff-resource DAG + OR-Set) | ✅ (Autobase + OR-Set) | ✅ (activity DAG + OR-Set) | ✅ (native CRDT) | ✅ ¹⁷ (commit-DAG + OR-Set) | ✅ (op-log + OR-Set) | ✅ (native change-DAG + OR-Set) | ✅ (commutative CRDT contract + 2P-Set) |
+| **↳ currentRevision** ²² | DAG-head hash | state digest | head-event-id hash | commit-CID digest | head-CID hash | head diff-resource hash | Autobase root hash | head-activity-id hash | native commit CID | HEAD SHA | BLAKE3 op-head digest | sorted-heads SHA-256 digest | sorted 2P-Set SHA-256 digest |
+| **↳ merge authority** | scribe | state-resolution-v2 | OR-Set | MST + OR-Set | OR-Set | OR-Set | Autobase | OR-Set | native CRDT | OR-Set + git-merge | p2panda partial order | objecttree heads + OR-Set | contract update_state (commutative monoid) |
+| **perspective-query** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ + 3 custom kinds ¹⁸ | ✅ | ✅ | ✅ |
+| **peers** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ | ❌ | ❌ |
+| **telepresence** | ✅ (native DHT) | ✅ (Presence API) | ✅ (ephemeral events) | ❌ | ❌ ²⁵ | ❌ | ✅ (Hyperswarm peers) | ❌ | ❌ | ❌ | ✅ (ephemeral_stream) | ❌ ²⁷ | ❌ ³⁰ |
+| **dual-language** | N/A (primary) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **sync modes** | Bidirectional | Bi / Pub / Sub | Bi / Pub / Sub | Bi / Pub / Sub | Bi / Pub / Sub | Bi / Pub / Sub | Bi / Pub / Sub | Bi / Pub / Sub | Bidirectional | Bi (GitHub) / out-of-band (Radicle) ¹⁷ | Bidirectional | Bidirectional | Bidirectional |
 
 **perspective-sync** means *bidirectional full-replica convergence*: two agents that have observed the same link diffs converge to the same Perspective regardless of order or partition. The reference (Holochain `p-diff-sync`) achieves this with a **hash-linked diff-DAG** — `commit(diff)` appends a content-addressed node and `currentRevision()` returns a hash into it. An earlier version of this matrix graded every language ✅ because it *exported a sync function*; that is export-presence, not convergence. The grades above track convergence.
 
@@ -97,7 +99,7 @@ Every language plays **two roles**, kept separate:
 - **Role A — convergence substrate:** a content-addressed, causal, mergeable diff-DAG that is the AD4M-facing source of truth. The `currentRevision` and `merge authority` rows describe it.
 - **Role B — native projection:** a derived view in the protocol's own idiom (Matrix chat, Nostr kind-1 notes, AP/AT Proto posts, Solid RDF, git working tree), for native users of that protocol. For the plain-text protocols (Matrix, Nostr, ActivityPub, AT Proto) and Solid this is now a **shared, SHACL-driven transformer** (`src/projection/`, copied verbatim per repo): a `NodeShape` annotated with `projection://nativeType` decides which graph property fills the native content, the projection is a pure fold of Channel A that is **never read back to rebuild the DAG**, and the single inbound exception — genuinely native-authored content from a user with no AD4M DID — is echo-suppressed and ingested as new Role-A links. Described by [Data Model & Storage](#data-model--storage) and ²³.
 
-The **litmus test** for Role A is `currentRevision()` returning a *content hash of the DAG head(s)* — never a timestamp, ETag, batch token, or sequence integer. All twelve languages now pass it. Merge is either the protocol's **native authority** (Holochain scribe, Matrix state-resolution-v2, Hypercore Autobase, NextGraph CRDT, AT Proto MST, any-sync objecttree heads) or an **OR-Set keyed by link hash** — links are immutable content-addressed elements, so add/remove/merge converge deterministically with no coordinator, and removals carry the *original* link hash so they converge against their add.
+The **litmus test** for Role A is `currentRevision()` returning a *content hash of the DAG head(s)* — never a timestamp, ETag, batch token, or sequence integer. All thirteen languages now pass it. Merge is either the protocol's **native authority** (Holochain scribe, Matrix state-resolution-v2, Hypercore Autobase, NextGraph CRDT, AT Proto MST, any-sync objecttree heads) or an **OR-Set keyed by link hash** — links are immutable content-addressed elements, so add/remove/merge converge deterministically with no coordinator, and removals carry the *original* link hash so they converge against their add.
 
 **Verification status:** each repo's unit tests assert the revision is a content hash stable across restarts, that folding the DAG from genesis reproduces the materialised link set, that concurrent add/remove resolve deterministically, and that diff application is order-independent. Live *multi-agent* convergence over running infrastructure (relay, homeserver, PDS, broker, swarm) is exercised by the **C1 convergence scenario** (`src/scenarios/c1-convergence.ts`), which installs a language into **two** real executors sharing one neighbourhood over its live backend and asserts cross-agent link-set equality — a per-executor unit test cannot prove this because a mock transport does not enforce relay/runtime semantics.
 
@@ -123,6 +125,8 @@ C1 has also been **run end-to-end for IPFS** — and this is the one run that cr
 
 C1 has also been **run end-to-end for Anytype** — the one backend riding a **genuinely native convergent change-DAG** rather than a synthesized one. A Go sidecar ([anytype-link-language](https://github.com/coasys/anytype-link-language)`/gateway`) embeds `any-sync`'s `objecttree` / `commonspace` / ACL (MIT) on `:7794`; each `PerspectiveDiff` becomes one Ed25519-signed **`TreeChange`** appended to one object tree per neighbourhood, the multi-parent DAG merges by heads, and an **OR-Set keyed by link hash** folds the converged set (removals are first-class tombstones carrying the original link hash — never a native delete). In the co-located C1 model both executors share one gateway node — a **Tier-1 substrate** (real `objecttree.AddRawChanges` head-merge over signed changes, gated by a derived ACL with an `AnyoneCanJoin` writer invite) whose inter-client wire is an in-process relay. Both agents reached **20/20 links in 4.05 s** and a removal converged in **6.07 s**. This run earned its keep by catching **the executor discarding `sync()`'s return value** — the same host-contract trap Nostr, Hypercore, Solid, AT Proto, and ActivityPub hit — where the language folded the gateway's authoritative `/sync` output but *returned* the delta instead of pushing it through `emitPerspectiveDiff`, so each replica froze at its own 10 links; fixed by emitting the pulled delta. The subtlety unique to this backend: `performSync()` must return the **net-new** delta (the fold diffed against the local mirror), never the raw gateway fold — the gateway's `since` cursor does not advance on the agent's *own* commits, so an incremental fold re-includes them and a naïve emit would double-add every link the agent authored. Both, plus a `tests/sync.test.ts` regression asserting only the net-new delta is emitted, are documented in the [anytype-link-language](https://github.com/coasys/anytype-link-language) `AGENTS.md`. Live render in the real Anytype desktop client needs `anytype-heart` (Any-Source-Available licensed, isolated and out of scope ²⁸); the convergence substrate needs only `any-sync` (MIT).
 
+C1 has also been **run end-to-end for Freenet** (freenet.org — the new Freenet, formerly Locutus) — a second backend riding a **genuinely native convergent substrate**, but a *commutative CRDT contract* rather than a change-DAG. Freenet stores each value under a **contract** (a WASM program) whose authors must make its state a **commutative monoid**, so this language ships an **OR-Set link-store contract** (Rust→WASM) whose `update_state` **is** the CRDT: convergence is performed by the real `freenet` node's WASM runtime, not by the language. Because Freenet delivers contract deltas **unordered** and mandates commutativity, the link-set is a **2P-Set keyed by a deterministic link hash** (add-set ∪ remove-set; present = adds − removes) — unconditionally commutative, associative, and idempotent, with removals as first-class tombstones carrying the original link hash. The `freenet` node and `freenet-stdlib` client are Rust and cannot run in the Deno/WASM executor sandbox, so a **Rust sidecar gateway** (`freenet-link-language`'s `/gateway`, HTTP on `:7795`) owns one WebSocket to a local `freenet local` node (WS `:7509`) and translates diffs → contract `Update`s and folded state → `/links` + `/sync`; it does **not** fold — the contract does. In the co-located C1 model both executors share one gateway → one node → one contract (keyed by neighbourhood id, `/sync` cursors routed by the `X-Ad4m-Did` header) — a **Tier-1 substrate** where the real contract `update_state` folds both agents' `Update`s in the node's WASM runtime. Both agents reached **20/20 links in 6.05 s** and a removal converged in **4.05 s**. It reuses the same **net-new-delta emit discipline** proven on Anytype: the language pushes inbound folds through `emitPerspectiveDiff`, and `performSync()` returns only the **net-new** delta (the fold diffed against the local mirror), never the raw gateway fold — the contract's converged state re-includes the agent's *own* links, so a naïve emit would double-add every link it authored — with a `tests/sync.test.ts` regression asserting only the net-new delta is emitted. Licensing stays clean by construction: `freenet-core` (the node + `fdev`) is **AGPL-3.0** and `freenet-stdlib` (contract + client API) is **LGPL-3.0-only**, but per `freenet-core`'s LICENSE.md an app that merely **talks to a node over a network protocol** (a WebSocket) and does not link core is **not a derivative work** — the gateway and contract link **only** `freenet-stdlib` and reach an **unmodified** node over WS, so `freenet-core` is never vendored, modified, or linked and the repo stays CAL-1.0. Repo: [freenet-link-language](https://github.com/coasys/freenet-link-language).
+
 **Telepresence** = real-time presence and signalling (online status, peer-to-peer signals, broadcast). Implemented via:
 - **Holochain**: DHT-based `get_online_agents` + `send_signal` zome calls
 - **Matrix**: Presence API (`/_matrix/client/v3/presence`) + to-device messages for signalling
@@ -130,11 +134,13 @@ C1 has also been **run end-to-end for Anytype** — the one backend riding a **g
 - **Hypercore**: Hyperswarm peer tracking via sidecar gateway REST API
 - **peer2panda**: p2panda's native `ephemeral_stream` — a non-persisted, online-only, signed gossip overlay on a topic derived as `BLAKE3(op_topic + ":telepresence")`, structurally separate from the op-log so presence traffic **cannot** move `currentRevision` (the ephemeral invariant holds by construction). Online status, directed signals, and broadcasts ride the sidecar gateway's REST API; the gateway's node has one signing key, so the AD4M DID travels inside each payload and the gateway routes by DID. The inbox is a 1-based monotonic `seq` cursor polled each sync cycle. Delivery is **best-effort** — ephemeral gossip has no store-and-forward, so a signal can drop during mesh warmup and must be re-sent if it has to arrive. **Live two-node verified** (two mDNS-discovered gateways): peers cross-visible both directions, directed signal delivered to the addressee only, broadcast delivered, and the op-log revision + opCount unchanged by all presence traffic.
 
-AT Proto, IPFS, Solid, ActivityPub, NextGraph, and Anytype lack a real-time bidirectional channel suitable for presence — AT Proto's firehose is one-way, IPFS PubSub is experimental, Solid notifications are container-level, AP is HTTP push only, NextGraph does not yet expose ephemeral messaging APIs to the client SDK, and Anytype's `any-sync` carries only persisted `objecttree` changes with no ephemeral presence channel ²⁷.
+AT Proto, IPFS, Solid, ActivityPub, NextGraph, Anytype, and Freenet lack a real-time bidirectional channel suitable for presence — AT Proto's firehose is one-way, IPFS PubSub is experimental, Solid notifications are container-level, AP is HTTP push only, NextGraph does not yet expose ephemeral messaging APIs to the client SDK, Anytype's `any-sync` carries only persisted `objecttree` changes with no ephemeral presence channel ²⁷, and a Freenet contract carries only persisted converged state with no ephemeral presence channel ³⁰.
 
 ²⁵ IPFS wires the full telepresence interface (`setOnlineStatus` / `getOnlineAgents` / `sendSignal` / `sendBroadcast`) over Kubo PubSub, and *presence detection* works — `pubsub/peers` returns a topic's subscriber set from a single request. But *signal receipt* requires consuming Kubo's long-lived streaming `pubsub/sub` NDJSON response, which the executor's buffering `httpFetch` cannot read (the same transport limitation that blocks Git's pack-file protocol, ¹⁷). A peer can therefore publish a signal but no peer ever receives it, so bidirectional signalling is non-functional and the matrix marks telepresence ❌ rather than overclaim a send-only half.
 
 ²⁷ Anytype's `any-sync` exposes no ephemeral presence or signalling channel — the `objecttree` carries only persisted, converged changes — so this language implements neither `peers()` nor `telepresence()`; both are graded ❌ rather than backed by an unwired stub.
+
+³⁰ A Freenet contract carries only persisted, converged state — there is no ephemeral presence or signalling channel — so this language implements neither `peers()` nor `telepresence()`; both are graded ❌ rather than backed by an unwired stub (mirrors ²⁷).
 
 **Dual-language** = can coexist alongside Holochain (p-diff-sync) in the same Neighbourhood, with origin tracking to prevent echo loops. Holochain is the primary language, so dual-language doesn't apply to it.
 
@@ -155,12 +161,12 @@ NextGraph telepresence may be added in future versions if native support is adde
 
 How each language controls who can read and write.
 
-|  | Holochain | Matrix | Nostr | AT Proto | IPFS | Solid | Hypercore | ActivityPub | NextGraph | Git | peer2panda | Anytype |
-|--|-----------|--------|-------|----------|------|-------|-----------|-------------|----------|-----|------------|---------|
-| **Read access** | DNA hash (namespace) | Room membership | Public ¹³ | Public ¹³ | Public (CID) | ACL (WAC) | Feed key | Public | Wallet ReadCap | Filesystem / Git host ACL | Topic subscription | Space ACL (read key) |
-| **Write access** | Membrane proof | Room power levels | Pubkey list or open | DID list or open | Open (anyone can pin) | ACL (WAC) | Writer keys (Autobase) | Followers / allowlist / admin | Wallet WriteCap | Filesystem / Git host ACL | Open (any author key) | ACL writer invite (AnyoneCanJoin) |
-| **Membership model** | Progenitor-controlled | `open` / `invite-only` | `open` / `pubkey-list` | `open` / `followers-only` / `list-only` | Open | `open` / `members-only` / `private` | Writer key management | `open` / `followers-only` / `members-only` / `admin-approved` | Capability-based | Out-of-band (Git host or shared filesystem) | Open (topic-based) | open (AnyoneCanJoin ACL) |
-| **Rate limiting** | ❌ (DHT natural) | ✅ (client-side) | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ (per-actor) | ❌ | N/A (local) | ❌ | ❌ |
+|  | Holochain | Matrix | Nostr | AT Proto | IPFS | Solid | Hypercore | ActivityPub | NextGraph | Git | peer2panda | Anytype | Freenet |
+|--|-----------|--------|-------|----------|------|-------|-----------|-------------|----------|-----|------------|---------|---------|
+| **Read access** | DNA hash (namespace) | Room membership | Public ¹³ | Public ¹³ | Public (CID) | ACL (WAC) | Feed key | Public | Wallet ReadCap | Filesystem / Git host ACL | Topic subscription | Space ACL (read key) | Contract key (public read) |
+| **Write access** | Membrane proof | Room power levels | Pubkey list or open | DID list or open | Open (anyone can pin) | ACL (WAC) | Writer keys (Autobase) | Followers / allowlist / admin | Wallet WriteCap | Filesystem / Git host ACL | Open (any author key) | ACL writer invite (AnyoneCanJoin) | Open (contract-validated updates) |
+| **Membership model** | Progenitor-controlled | `open` / `invite-only` | `open` / `pubkey-list` | `open` / `followers-only` / `list-only` | Open | `open` / `members-only` / `private` | Writer key management | `open` / `followers-only` / `members-only` / `admin-approved` | Capability-based | Out-of-band (Git host or shared filesystem) | Open (topic-based) | open (AnyoneCanJoin ACL) | Open (contract-based) |
+| **Rate limiting** | ❌ (DHT natural) | ✅ (client-side) | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ (per-actor) | ❌ | N/A (local) | ❌ | ❌ | ❌ |
 
 ¹³ Nostr relay events and AT Proto repo records are publicly readable by default. Access control requires relay-level or PDS-level configuration, not the link language.
 
@@ -170,17 +176,17 @@ How each language controls who can read and write.
 
 How links are represented in each protocol's native format.
 
-|  | Holochain | Matrix | Nostr | AT Proto | IPFS | Solid | Hypercore | ActivityPub | NextGraph | Git | peer2panda | Anytype |
-|--|-----------|--------|-------|----------|------|-------|-----------|-------------|----------|-----|------------|---------|
-| **Native format** | DHT entry (Action + Entry) | State event (`dev.ad4m.link`) | kind:9078 event (regular) | Repo record (`ad4m.link.triple` / `.tombstone`) | DAG-JSON commit (multi-parent) | Immutable diff resource (`diff-<hash>.ttl`) | Feed block (JSON) | AP Activity (`ad4m:Diff` tag) | RDF Triple (SPARQL) | JSON file `links/<hash>.json` | Signed CBOR operation | TreeChange (objecttree change) |
-| **Storage location** | Holochain DHT | Homeserver DB | Relay DB | PDS repo | IPFS datastore | Pod filesystem | Hypercore feed | Inbox/Outbox | NextGraph wallet/store | Git working tree (executor data dir) | p2panda SQLite op store (gateway) | any-store DB (gateway) |
-| **Content-addressed** | ✅ (entry hash) | ❌ | ✅ (event ID) | ❌ (rkey) | ✅ (CID) | ✅ (diff resource) | ❌ (seq number) | ✅ (diff activity) | ✅ (commit CID) | ✅ (hash filename) | ✅ (BLAKE3 op hash) | ✅ (change id) |
-| **Append-only** | ✅ (DHT) | ❌ | ✅ (regular events) | ❌ | ✅ | ✅ (immutable diffs) | ✅ | ✅ (immutable diffs) | ❌ (CRDT) | ✅ (commit history) | ✅ (per-author log) | ✅ (objecttree) |
-| **Merkle structure** | ✅ (DHT) | ❌ | ✅ (e-tag DAG) | ✅ (MST) | ✅ (DAG) | ✅ (diff-resource DAG) | ✅ (Merkle tree) | ✅ (activity DAG) | ✅ (DAG) | ✅ (Git commit DAG) | ✅ (BLAKE3 hash chain) | ✅ (objecttree DAG) |
-| **Human-readable** | ❌ | ✅ (dual render) | ✅ (kind-1 notes) ²³ | ✅ (Bluesky posts) ²³ | ❌ (DAG-JSON) | ✅ (RDF/Turtle) | ❌ | ✅ (Note content) | ❌ (SPARQL/RDF) | ✅ (JSON + `git log`) | ❌ (CBOR) | ❌ (protobuf changes) |
-| **Native app visibility** | N/A | Element ✅ verified ²³ | Nostr clients (`nak` + GUI) ✅ verified ²³ | PDS-verified; official-app render needs AppView + did:plc ²³ | IPFS Gateway / Desktop | rdflib / N3.js / SPARQL ✅ verified ²³ | hyp CLI | renders AS2, self-delivery pending ²³ | NextGraph apps | `git` CLI, GitHub / GitLab / Gitea web UIs | Other p2panda nodes (same topic) | Anytype client (needs anytype-heart) ²⁸ |
+|  | Holochain | Matrix | Nostr | AT Proto | IPFS | Solid | Hypercore | ActivityPub | NextGraph | Git | peer2panda | Anytype | Freenet |
+|--|-----------|--------|-------|----------|------|-------|-----------|-------------|----------|-----|------------|---------|---------|
+| **Native format** | DHT entry (Action + Entry) | State event (`dev.ad4m.link`) | kind:9078 event (regular) | Repo record (`ad4m.link.triple` / `.tombstone`) | DAG-JSON commit (multi-parent) | Immutable diff resource (`diff-<hash>.ttl`) | Feed block (JSON) | AP Activity (`ad4m:Diff` tag) | RDF Triple (SPARQL) | JSON file `links/<hash>.json` | Signed CBOR operation | TreeChange (objecttree change) | Contract Update (2P-Set delta) |
+| **Storage location** | Holochain DHT | Homeserver DB | Relay DB | PDS repo | IPFS datastore | Pod filesystem | Hypercore feed | Inbox/Outbox | NextGraph wallet/store | Git working tree (executor data dir) | p2panda SQLite op store (gateway) | any-store DB (gateway) | Contract state (freenet node) |
+| **Content-addressed** | ✅ (entry hash) | ❌ | ✅ (event ID) | ❌ (rkey) | ✅ (CID) | ✅ (diff resource) | ❌ (seq number) | ✅ (diff activity) | ✅ (commit CID) | ✅ (hash filename) | ✅ (BLAKE3 op hash) | ✅ (change id) | ✅ (sha256 link tag) |
+| **Append-only** | ✅ (DHT) | ❌ | ✅ (regular events) | ❌ | ✅ | ✅ (immutable diffs) | ✅ | ✅ (immutable diffs) | ❌ (CRDT) | ✅ (commit history) | ✅ (per-author log) | ✅ (objecttree) | ✅ (grow-only 2P-Set) |
+| **Merkle structure** | ✅ (DHT) | ❌ | ✅ (e-tag DAG) | ✅ (MST) | ✅ (DAG) | ✅ (diff-resource DAG) | ✅ (Merkle tree) | ✅ (activity DAG) | ✅ (DAG) | ✅ (Git commit DAG) | ✅ (BLAKE3 hash chain) | ✅ (objecttree DAG) | ❌ (2P-Set, no DAG) |
+| **Human-readable** | ❌ | ✅ (dual render) | ✅ (kind-1 notes) ²³ | ✅ (Bluesky posts) ²³ | ❌ (DAG-JSON) | ✅ (RDF/Turtle) | ❌ | ✅ (Note content) | ❌ (SPARQL/RDF) | ✅ (JSON + `git log`) | ❌ (CBOR) | ❌ (protobuf changes) | ❌ (binary contract state) |
+| **Native app visibility** | N/A | Element ✅ verified ²³ | Nostr clients (`nak` + GUI) ✅ verified ²³ | PDS-verified; official-app render needs AppView + did:plc ²³ | IPFS Gateway / Desktop | rdflib / N3.js / SPARQL ✅ verified ²³ | hyp CLI | renders AS2, self-delivery pending ²³ | NextGraph apps | `git` CLI, GitHub / GitLab / Gitea web UIs | Other p2panda nodes (same topic) | Anytype client (needs anytype-heart) ²⁸ | Freenet apps (contract state via node) ³¹ |
 
-Since the diff-DAG rework, the **Content-addressed**, **Append-only**, and **Merkle structure** rows describe the AD4M-facing convergence substrate (Role A) — the content-hash-linked diff-DAG each language persists — rather than the human-facing native projection (Role B) covered by **Native format**, **Human-readable**, and **Native app visibility**. Languages that ride a native DAG (IPFS, AT Proto, Hypercore, Git, peer2panda, NextGraph, Anytype) reuse it directly; Nostr, Solid, and ActivityPub *emulate* one with content-hash parent pointers (Nostr e-tag chains, Solid `ad4m:previous`, AP `ad4m:prev`). Matrix keys links by hash into room **state** and rides state-resolution-v2 for merge, so its convergence substrate is the state store rather than a Merkle log — hence ❌ on the log-shaped rows but ✅ on perspective-sync.
+Since the diff-DAG rework, the **Content-addressed**, **Append-only**, and **Merkle structure** rows describe the AD4M-facing convergence substrate (Role A) — the content-hash-linked diff-DAG each language persists — rather than the human-facing native projection (Role B) covered by **Native format**, **Human-readable**, and **Native app visibility**. Languages that ride a native DAG (IPFS, AT Proto, Hypercore, Git, peer2panda, NextGraph, Anytype) reuse it directly; Nostr, Solid, and ActivityPub *emulate* one with content-hash parent pointers (Nostr e-tag chains, Solid `ad4m:previous`, AP `ad4m:prev`). Matrix keys links by hash into room **state** and rides state-resolution-v2 for merge, so its convergence substrate is the state store rather than a Merkle log — hence ❌ on the log-shaped rows but ✅ on perspective-sync. Freenet is a third shape: its substrate is a **content-addressed grow-only 2P-Set** merged by a commutative-monoid contract, so it is ✅ on **Content-addressed** and **Append-only** (the set only grows; removals are tombstone entries keyed by the original link hash) but ❌ on **Merkle structure** — there is no causal parent chain, and convergence rides the contract's `update_state` rather than a DAG.
 
 ²³ **Channel-B native projection — verified live, honestly tiered.** Since the shared SHACL-driven projection module landed, Matrix, Nostr, ActivityPub, AT Proto, and Solid render AD4M links as first-class native content (Matrix `m.room.message`, Nostr kind-1 notes, AS2 `Note`, `app.bsky.feed.post`, native RDF) rather than opaque diff blobs — a `NodeShape` carrying `projection://nativeType` selects which graph property fills the native body, and only annotated shapes project. Two honesty checks apply per language: **(1) is the projection real** — does the language's own code emit a standards-valid native object that real third-party software accepts — and **(2) is it live end-to-end** — did the language's *own* path deliver it into real native software, confirmed by a native read/render. On both checks the languages fall into three honest tiers:
 
@@ -192,16 +198,18 @@ The projection is also unit-tested for native-payload shape and for echo-suppres
 
 ²⁸ Rendering an Anytype object in the real Anytype desktop client requires `anytype-heart`, which is **Any-Source-Available licensed (ASAL 1.0, NOT OSI open-source)** and restricts commercial use. To keep the link language and its Go gateway cleanly CAL-1.0 over MIT-only dependencies (`any-sync` + `any-store`), `anytype-heart` is **not** vendored, so native-client render is isolated and out of scope; the gateway proves convergence on the `any-sync` substrate itself. Any future Role-B live render must be an optional, separately-built component.
 
+³¹ `freenet-core` (the `freenet` node and `fdev`) is **AGPL-3.0**, but `freenet-stdlib` (the contract SDK and client API) is **LGPL-3.0-only**. Per `freenet-core`'s LICENSE.md, an application that communicates with a node over a **network protocol** — here a WebSocket — and does not link the core is **not a derivative work**. This link language's gateway and contract link **only** `freenet-stdlib` (LGPL) and reach an **unmodified** `freenet` node over WS — `freenet-core` is never vendored, modified, or linked — so the repo stays cleanly CAL-1.0 (the same isolation posture as Anytype's ²⁸, reached by talking over WS rather than by not vendoring an ASAL heart). Freenet apps read contract state through the node's HTTP gateway; there is no single "browse any contract" desktop app, so native visibility is via the node.
+
 ---
 
 ## Scalability & Performance
 
-|  | Holochain | Matrix | Nostr | AT Proto | IPFS | Solid | Hypercore | ActivityPub | NextGraph | Git | peer2panda | Anytype |
-|--|-----------|--------|-------|----------|------|-------|-----------|-------------|----------|-----|------------|---------|
-| **Sync latency** | ~1-10s (gossip) | ~1s (HTTP poll) | ~1s (WebSocket push) | ~1s (HTTP poll) | ~5-30s (DHT + IPNS) | ~1s (HTTP poll) | ~1-5s (DHT + gateway poll) | ~1-10s (HTTP delivery) | ~1-5s (CRDT propagation + gateway poll) | Local: ms; GitHub: ~60s pull / ~5s debounced push; Radicle: out-of-band | ~1-5s (gossip + gateway poll) | ~1-5s (any-sync + gateway poll) |
-| **Horizontal scaling** | ✅ (DHT shards) | ✅ (homeserver federation) | ✅ (relay multiplexing) | ✅ (PDS federation + relay) | ✅ (DHT) | Limited (single pod) | ✅ (Hyperswarm) | ✅ (server federation) | ✅ (CRDT mesh) | ✅ (any Git host) | ✅ (gossip overlay) | ✅ (any-sync sync nodes) |
-| **Max neighbourhood size** | DHT-limited (thousands) | Server-limited | Relay-limited | PDS-limited | DHT-limited | Server-limited | Feed-limited | Server-limited | CRDT-limited | Git-repo-limited ¹⁹ | Gossip-limited | any-sync-limited |
-| **Bandwidth efficiency** | Gossip (efficient) | Polling (moderate) | Subscription (efficient) | Polling (moderate) | Polling (moderate) | Polling (moderate) | Polling (moderate) | Push delivery (efficient) | CRDT delta sync (efficient) | Pack files (very efficient) | Gossip + log-height sync (efficient) | Change-DAG delta sync (efficient) |
+|  | Holochain | Matrix | Nostr | AT Proto | IPFS | Solid | Hypercore | ActivityPub | NextGraph | Git | peer2panda | Anytype | Freenet |
+|--|-----------|--------|-------|----------|------|-------|-----------|-------------|----------|-----|------------|---------|---------|
+| **Sync latency** | ~1-10s (gossip) | ~1s (HTTP poll) | ~1s (WebSocket push) | ~1s (HTTP poll) | ~5-30s (DHT + IPNS) | ~1s (HTTP poll) | ~1-5s (DHT + gateway poll) | ~1-10s (HTTP delivery) | ~1-5s (CRDT propagation + gateway poll) | Local: ms; GitHub: ~60s pull / ~5s debounced push; Radicle: out-of-band | ~1-5s (gossip + gateway poll) | ~1-5s (any-sync + gateway poll) | ~1-5s (contract update + gateway poll) |
+| **Horizontal scaling** | ✅ (DHT shards) | ✅ (homeserver federation) | ✅ (relay multiplexing) | ✅ (PDS federation + relay) | ✅ (DHT) | Limited (single pod) | ✅ (Hyperswarm) | ✅ (server federation) | ✅ (CRDT mesh) | ✅ (any Git host) | ✅ (gossip overlay) | ✅ (any-sync sync nodes) | ✅ (Freenet peers) |
+| **Max neighbourhood size** | DHT-limited (thousands) | Server-limited | Relay-limited | PDS-limited | DHT-limited | Server-limited | Feed-limited | Server-limited | CRDT-limited | Git-repo-limited ¹⁹ | Gossip-limited | any-sync-limited | Freenet-network-limited |
+| **Bandwidth efficiency** | Gossip (efficient) | Polling (moderate) | Subscription (efficient) | Polling (moderate) | Polling (moderate) | Polling (moderate) | Polling (moderate) | Push delivery (efficient) | CRDT delta sync (efficient) | Pack files (very efficient) | Gossip + log-height sync (efficient) | Change-DAG delta sync (efficient) | Delta/summary state-sync (efficient) |
 
 ¹⁹ Practical ceilings follow standard Git advice — GitHub recommends keeping repos under ~1GB and under ~100K files. Render time grows linearly with link count ([git-link-language](https://github.com/coasys/git-link-language)).
 
@@ -211,12 +219,12 @@ The projection is also unit-tested for native-payload shape and for echo-suppres
 
 How each language relates to the broader protocol ecosystem.
 
-|  | Holochain | Matrix | Nostr | AT Proto | IPFS | Solid | Hypercore | ActivityPub | NextGraph | Git | peer2panda | Anytype |
-|--|-----------|--------|-------|----------|------|-------|-----------|-------------|----------|-----|------------|---------|
-| **Standards body** | Holochain Foundation | matrix.org Foundation | NIP process (community) | Bluesky PBC | IPFS / Protocol Labs | W3C Solid CG | Holepunch | W3C ActivityPub | NextGraph.org | Git project (Linus + maintainers) | p2panda project | Any Association (anyproto) |
-| **Spec maturity** | Stable | Stable | Evolving (NIPs) | Evolving | Stable | Stable | Stable | Stable (W3C Rec) | Alpha/Evolving | Stable (19+ years) | Evolving (v0.x) | Evolving (powers Anytype) |
-| **Existing network size** | Small (Holochain apps) | Large (Matrix federation) | Large (Nostr relays) | Large (Bluesky + AT network) | Very large (IPFS network) | Small (Solid pods) | Small (Hypercore ecosystem) | Very large (Fediverse) | Small (NextGraph alpha) | Very large (every developer) | Small (p2panda apps) | Medium (Anytype network) |
-| **AD4M links visible to native users** | Yes (Flux) | Yes (as room events) ²³ | Yes (kind-1 notes) ²³ | Yes (PDS-verified) ²³ | Yes (via gateway) | Yes (as RDF resources) ²³ | Partial (via gateway) | Partial (renders AS2; self-delivery pending) ²³ | Yes (as SPARQL triples) | Yes (JSON files + `git log`) | Partial (via gateway) | Partial (via gateway) ²⁸ |
+|  | Holochain | Matrix | Nostr | AT Proto | IPFS | Solid | Hypercore | ActivityPub | NextGraph | Git | peer2panda | Anytype | Freenet |
+|--|-----------|--------|-------|----------|------|-------|-----------|-------------|----------|-----|------------|---------|---------|
+| **Standards body** | Holochain Foundation | matrix.org Foundation | NIP process (community) | Bluesky PBC | IPFS / Protocol Labs | W3C Solid CG | Holepunch | W3C ActivityPub | NextGraph.org | Git project (Linus + maintainers) | p2panda project | Any Association (anyproto) | Freenet (freenet.org) |
+| **Spec maturity** | Stable | Stable | Evolving (NIPs) | Evolving | Stable | Stable | Stable | Stable (W3C Rec) | Alpha/Evolving | Stable (19+ years) | Evolving (v0.x) | Evolving (powers Anytype) | Evolving (v0.x) |
+| **Existing network size** | Small (Holochain apps) | Large (Matrix federation) | Large (Nostr relays) | Large (Bluesky + AT network) | Very large (IPFS network) | Small (Solid pods) | Small (Hypercore ecosystem) | Very large (Fediverse) | Small (NextGraph alpha) | Very large (every developer) | Small (p2panda apps) | Medium (Anytype network) | Small–Medium (Freenet network relaunch) |
+| **AD4M links visible to native users** | Yes (Flux) | Yes (as room events) ²³ | Yes (kind-1 notes) ²³ | Yes (PDS-verified) ²³ | Yes (via gateway) | Yes (as RDF resources) ²³ | Partial (via gateway) | Partial (renders AS2; self-delivery pending) ²³ | Yes (as SPARQL triples) | Yes (JSON files + `git log`) | Partial (via gateway) | Partial (via gateway) ²⁸ | Partial (via gateway) ³¹ |
 
 ---
 
@@ -246,15 +254,16 @@ For building new Expression Languages, see [`coasys/ad4m-expression-language-tem
 | Fully P2P, no infrastructure | **Holochain**, **Hypercore**, **NextGraph**, or **peer2panda** |
 | Real-time telepresence (presence, signals) | **Holochain**, **Matrix**, **Nostr**, **Hypercore**, or **peer2panda** |
 | Human-readable data in native apps | **Matrix**, **Nostr**, **AT Proto**, **Solid**, or **ActivityPub** |
-| Sovereign identity (no server authority) | **Holochain**, **Nostr**, **IPFS**, **Hypercore**, **NextGraph**, **peer2panda**, or **Anytype** |
+| Sovereign identity (no server authority) | **Holochain**, **Nostr**, **IPFS**, **Hypercore**, **NextGraph**, **peer2panda**, **Anytype**, or **Freenet** |
 | End-to-end encryption | **NextGraph** (wallet-level — inherited from the NextGraph stack, not enforced by the language; see ²⁴) |
 | Largest existing network reach | **ActivityPub** (Fediverse) or **Nostr** |
 | W3C standards compliance | **Solid** (LDP + RDF) or **ActivityPub** (W3C Rec) |
-| Content-addressed / immutable data | **IPFS**, **Holochain**, **peer2panda**, or **Anytype** |
+| Content-addressed / immutable data | **IPFS**, **Holochain**, **peer2panda**, **Anytype**, or **Freenet** |
 | Easiest self-hosting | **Nostr** (single relay) or **Matrix** (Conduit) |
 | Bridge to Bluesky / AT network | **AT Protocol** |
 | Bridge to Anytype / any-sync network | **Anytype** |
-| Local-first / offline-capable | **NextGraph** (CRDT), **Git** (local-first; GitHub/Radicle remote), **peer2panda** (append-only log), **Anytype** (local-first DAG), **Holochain** (partial), or **Hypercore** (partial) |
+| Bridge to Freenet / contract network | **Freenet** |
+| Local-first / offline-capable | **NextGraph** (CRDT), **Git** (local-first; GitHub/Radicle remote), **peer2panda** (append-only log), **Anytype** (local-first DAG), **Freenet** (local node), **Holochain** (partial), or **Hypercore** (partial) |
 | Full audit trail + history queries | **Git** (commit DAG + `git-history` / `git-state-at` / `git-blame` queries) |
 | Time-travel reads to past states | **Git** (`git-state-at` query) |
 | Interoperability with existing developer tooling | **Git** (any Git CLI / GitHub / GitLab / Gitea) |
