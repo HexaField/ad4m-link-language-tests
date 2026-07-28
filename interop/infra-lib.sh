@@ -79,8 +79,8 @@ _infra_wait() {
 # git, expression-*) return "none" and infra_ensure is a no-op for them.
 _infra_kind() {
     case "$1" in
-        nostr|matrix|solid|atproto|ipfs)        echo docker ;;
-        hypercore|nextgraph|peer2panda|anytype) echo proc ;;
+        nostr|matrix|solid|atproto|ipfs)                 echo docker ;;
+        hypercore|nextgraph|peer2panda|anytype|freenet)  echo proc ;;
         *)                               echo none ;;
     esac
 }
@@ -101,6 +101,7 @@ _infra_health() {
         nextgraph)  _infra_tcp localhost "${NEXTGRAPH_PORT:-7779}" ;;
         peer2panda) _infra_tcp localhost "${PEER2PANDA_PORT:-7780}" ;;
         anytype)    _infra_http "http://localhost:${ANYTYPE_PORT:-7794}/status" ;;
+        freenet)    _infra_http "http://localhost:${FREENET_PORT:-7795}/status" ;;
         *) return 1 ;;
     esac
 }
@@ -111,6 +112,7 @@ _infra_proc_port() {
         nextgraph)  echo "${NEXTGRAPH_PORT:-7779}" ;;
         peer2panda) echo "${PEER2PANDA_PORT:-7780}" ;;
         anytype)    echo "${ANYTYPE_PORT:-7794}" ;;
+        freenet)    echo "${FREENET_PORT:-7795}" ;;
         *) echo "" ;;
     esac
 }
@@ -122,6 +124,7 @@ _infra_proc_dir() {
         nextgraph)  echo "${NEXTGRAPH_GATEWAY_DIR:-$ws/nextgraph-link-language/gateway}" ;;
         peer2panda) echo "${PEER2PANDA_GATEWAY_DIR:-$ws/peer2panda-link-language/gateway}" ;;
         anytype)    echo "${ANYTYPE_GATEWAY_DIR:-$ws/anytype-link-language/gateway}" ;;
+        freenet)    echo "${FREENET_GATEWAY_DIR:-$ws/freenet-link-language/gateway}" ;;
         *) echo "" ;;
     esac
 }
@@ -146,6 +149,16 @@ _infra_proc_cmd() {
             [[ -x "$bin" ]] || return 1
             aport="$(_infra_proc_port anytype)"
             echo "env ANYTYPE_GATEWAY_ADDR=127.0.0.1:$aport $bin" ;;
+        freenet)
+            # Two procs: an unmodified `freenet` node (AGPL, over WS) + the Rust
+            # sidecar gateway (LGPL). launch.sh starts the node then execs the
+            # gateway in the SAME process group, so infra-lib's group-kill tears
+            # down both. Needs the gateway binary + the compiled contract wasm.
+            local bin="$dir/target/release/freenet-link-gateway"
+            local wasm="$dir/../contract/target/wasm32-unknown-unknown/release/freenet_link_contract.wasm"
+            [[ -x "$bin" && -f "$wasm" ]] || return 1
+            command -v freenet >/dev/null 2>&1 || [[ -x "$HOME/.cargo/bin/freenet" ]] || return 1
+            echo "bash launch.sh" ;;
         *) return 1 ;;
     esac
 }

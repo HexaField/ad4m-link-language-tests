@@ -413,6 +413,44 @@ export const CONVERGENCE_LANGUAGES: ConvergenceLanguage[] = [
       };
     },
   },
+
+  {
+    // Freenet (freenet.org) — the SECOND backend riding a genuine NATIVE
+    // convergent substrate. A Freenet contract is a WASM program whose state is
+    // merged by a commutative monoid (Freenet's own requirement of contract
+    // authors), so the OR-Set link-store contract IS the CRDT and convergence is
+    // performed by the real `freenet` node's WASM runtime — not synthesized in a
+    // gateway (unlike nostr/ap/matrix) and not causally-ordered (unlike anytype;
+    // Freenet delivers deltas unordered, so the contract is a 2P-Set keyed by a
+    // deterministic link hash). The `freenet` node + `freenet-stdlib` client are
+    // Rust and can't run in the Deno/WASM executor sandbox, so a Rust sidecar
+    // gateway (freenet-link-language/gateway, :7795) owns the WS connection to a
+    // local node and translates the language's diffs into contract Updates and
+    // the folded state into /links + /sync. Two agents behind one gateway share
+    // one contract (keyed by neighbourhood id), routed by the X-Ad4m-Did header
+    // for their /sync cursors. FREENET_CONTRACT_KEY = the neighbourhood id; the
+    // gateway maps it to a real ContractKey (PUT-or-reuse), so no provisioning
+    // step is needed. healthTcp probes the gateway (:7795): it only opens once it
+    // has connected to the node, so it is the single readiness gate. License
+    // isolation: gateway + contract link only freenet-stdlib (LGPL) and the node
+    // is an unmodified AGPL binary reached over WS — never linked (see the repo's
+    // .specs/design.md).
+    id: "freenet",
+    bundlePath: resolve(WORKSPACE_ROOT, "freenet-link-language/build/bundle.js"),
+    possibleTemplateParams: ["FREENET_GATEWAY_URL", "FREENET_CONTRACT_KEY", "NEIGHBOURHOOD_META"],
+    backend: {
+      compose:
+        "node + gateway (freenet-link-language/gateway, cargo build --release on :7795; freenet local node on :7509)",
+      healthTcp: { host: "127.0.0.1", port: 7795 },
+    },
+    makeTemplateData(neighbourhoodId: string): Record<string, string> {
+      return {
+        FREENET_GATEWAY_URL: "http://127.0.0.1:7795",
+        FREENET_CONTRACT_KEY: neighbourhoodId,
+        NEIGHBOURHOOD_META: "{}",
+      };
+    },
+  },
 ];
 
 export function getConvergenceLanguage(id: string): ConvergenceLanguage | undefined {

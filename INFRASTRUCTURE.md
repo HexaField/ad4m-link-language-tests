@@ -26,6 +26,7 @@ This document describes the external infrastructure needed for each Link Languag
 | NextGraph | Sidecar gateway | ✅ Node.js | — | Minimal |
 | peer2panda | Sidecar gateway | ✅ Rust binary | — | Minimal |
 | Anytype | Sidecar gateway | ✅ Go binary | — | Minimal |
+| Freenet | Local node + sidecar gateway | ✅ Rust binary + WASM contract | — | Minimal |
 
 ---
 
@@ -375,6 +376,66 @@ The gateway depends **only** on `any-sync` (MIT) + `any-store` (permissive). `an
 ### Notes
 - The gateway must stay running for the duration of a test
 - A stale gateway binary silently serves old semantics — rebuild (`go build`) after any gateway change
+
+---
+
+## Freenet
+
+### What's Needed
+Two processes: an **unmodified `freenet` node** and a **Rust sidecar gateway**. Each AD4M neighbourhood maps to one Freenet **contract** — a WASM program whose `update_state` is an OR-Set fold (Freenet requires contract merges to be a commutative monoid, so the contract *is* the CRDT, executed by the node's WASM runtime). The `freenet` node + `freenet-stdlib` client are Rust and cannot run inside the executor's Deno/WASM sandbox, so the gateway owns the WebSocket connection to the node and exposes the small HTTP API the language talks to via `httpFetch`. The gateway does not fold — it sends contract Updates and materialises the folded state from contract Gets.
+
+Two agents behind one gateway share one contract (keyed by neighbourhood id), routed for their `/sync` cursors by the `X-Ad4m-Did` header.
+
+### Self-Hosted (Required)
+
+The `freenet` node binary comes from crates.io; the contract wasm and the gateway are built from the `freenet-link-language` repo (not Docker containers):
+
+```bash
+cargo install freenet fdev                                            # node + dev CLI (once)
+cd $WORKSPACE/freenet-link-language/contract
+CARGO_TARGET_DIR="$PWD/target" fdev build --features contract         # → contract wasm
+cd $WORKSPACE/freenet-link-language/gateway
+cargo build --release                                                 # → target/release/freenet-link-gateway
+bash launch.sh                                                        # freenet local node (:7509) + gateway (:7795)
+```
+
+`verify-freenet.sh` spawns/reuses this automatically via `infra-lib.sh` (`infra_ensure freenet`). `launch.sh` starts `freenet local` in the background and execs the gateway as one process group, so a single group-kill tears down both. Point `FREENET_GATEWAY_DIR` at an existing checkout to override the default (`$WORKSPACE/freenet-link-language/gateway`).
+
+**Ports:**
+| Port | Service | Protocol |
+|---|---|---|
+| 7795 | Gateway HTTP API | TCP (HTTP) |
+| 7509 | Freenet node WebSocket API | TCP (WS) |
+
+Override the gateway port with `FREENET_PORT`; the node WS port with `FREENET_WS_PORT`.
+
+### Gateway API
+
+Every call carries `X-Ad4m-Did: <agent did>`; the gateway maps the neighbourhood id to a real Freenet `ContractKey`.
+
+- `GET /status` — gateway + node liveness (nodeId, revision)
+- `POST /space/open` — map neighbourhood id → Freenet contract (PUT-or-reuse, idempotent)
+- `GET /links` — folded link set, optionally filtered
+- `POST /diff` — send one contract `Update` (`StateDelta`) for a `PerspectiveDiff`
+- `GET /sync` — folded additions/removals past a cursor (= the contract-state revision)
+
+### Network Requirements
+- The language reaches the gateway over local HTTP (single port, 7795 by default)
+- The gateway reaches the node over local WebSocket (7509 by default)
+- A multi-node Freenet network is only needed for **cross-host** federation; the co-located C1 model runs both agents against one `freenet local` node, whose contract folds both agents' Updates — so no external Freenet nodes are required. For a real multi-host deployment, run a 1-gateway + N-node local network (`freenet-core/scripts/local-network.mk`) or join the public Freenet network.
+
+### Infrastructure Cost
+**Minimal.** One `freenet local` node + one small Rust gateway process; the node stores contract state on disk in a git-ignored data dir.
+
+### Persistence
+Contract state is stored by the node (git-ignored data dir). Convergence re-folds from the contract's OR-Set state; the gateway holds no authoritative state.
+
+### License Isolation (non-negotiable)
+`freenet-core` (the `freenet` node + `fdev`) is **AGPL-3.0**; `freenet-stdlib` (contract + client API) is **LGPL-3.0-only**. Per freenet-core's `LICENSE.md`, an app that communicates with a node over a network protocol (WebSocket) and does not link core is **not** a derivative work. The gateway + contract link **only `freenet-stdlib`** (LGPL) and reach an **unmodified** node over WS — `freenet-core` is never vendored, modified, or linked. The link-language repo LICENSE stays CAL-1.0.
+
+### Notes
+- Both the node and the gateway must stay running for the duration of a test
+- A stale contract wasm silently serves old semantics — rebuild (`fdev build`) after any contract change; the gateway PUTs the raw wasm at `contract/target/wasm32-unknown-unknown/release/freenet_link_contract.wasm`
 
 ---
 
