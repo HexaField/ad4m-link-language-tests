@@ -17,6 +17,8 @@ import {
   s9NeighbourhoodMemoryLeak,
   s10SubscriptionFanout, s12PersistenceColdQuery, s13ReadWriteMix, s14MultiPerspectiveLoad,
   s15LeakAttribution,
+  t1Sfu5Peer, t2Sfu10Peer, t5TopologyTable, t6PipeHandshake,
+  f5RenegotiationFlood, f6NonMemberJoin, f7BadCapability,
 } from "./scenarios/index.js";
 import { consoleReport, jsonReport, comparisonReport } from "./reporters.js";
 import { config, validateAdamRepo } from "./config.js";
@@ -33,6 +35,8 @@ const ALL_SCENARIOS: Scenario[] = [
   s9NeighbourhoodMemoryLeak,
   s10SubscriptionFanout, s12PersistenceColdQuery, s13ReadWriteMix, s14MultiPerspectiveLoad,
   s15LeakAttribution,
+  t1Sfu5Peer, t2Sfu10Peer, t5TopologyTable, t6PipeHandshake,
+  f5RenegotiationFlood, f6NonMemberJoin, f7BadCapability,
 ];
 
 function parseArgs() {
@@ -122,6 +126,16 @@ async function runScenariosForBranch(
       });
 
       await client.connect();
+
+      // Generate agent identity (creates the main key needed for JWT minting)
+      try {
+        await client.call("agent.generate", { passphrase: "wind-tunnel-test" });
+        console.log(`[runner] Agent identity generated`);
+      } catch (err: any) {
+        if (!err.message?.includes("already")) {
+          console.log(`[runner] agent.generate: ${err.message}`);
+        }
+      }
 
       const ctx: ScenarioContext = {
         client,

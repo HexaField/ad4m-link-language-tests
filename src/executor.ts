@@ -182,6 +182,7 @@ export async function startExecutor(
     "--run-dapp-server", "false",
     "--hc-use-bootstrap", "false",
     "--hc-use-proxy", "false",
+    "--enable-multi-user", "true",
     ...(config.extraArgs ?? []),
   ], {
     stdio: ["pipe", "pipe", "pipe"],
