@@ -61,6 +61,8 @@ export const t10SimulcastLayerSelection: Scenario = {
 
     const peers: WebRtcPeer[] = [];
     const wires: RenegotiationWire[] = [];
+    let allPrefsAccepted = false;
+    let invalidRejected = false;
 
     try {
       // Join both peers.
@@ -84,9 +86,9 @@ export const t10SimulcastLayerSelection: Scenario = {
           if (videoSender) {
             const params = videoSender.getParameters();
             params.encodings = [
-              { rid: "q", maxBitrate: 150_000, scaleResolutionDownBy: 4 },
-              { rid: "h", maxBitrate: 500_000, scaleResolutionDownBy: 2 },
-              { rid: "f", maxBitrate: 1_200_000 },
+              { rid: "low", maxBitrate: 150_000, scaleResolutionDownBy: 4 },
+              { rid: "medium", maxBitrate: 500_000, scaleResolutionDownBy: 2 },
+              { rid: "high", maxBitrate: 1_200_000 },
             ];
             await videoSender.setParameters(params);
             simulcastConfigured = true;
@@ -129,18 +131,49 @@ export const t10SimulcastLayerSelection: Scenario = {
       const peerB = peers[1];
       const sessionB = sessions[1];
 
-      // ── Measure LOW quality ──
-      let lowQualityError: string | null = null;
+      // ── Quality preference lifecycle ──
+      // Verify all four preference values are accepted by the server.
+      const prefResults: Record<string, boolean> = {};
+      for (const pref of ["low", "medium", "high", "auto"] as const) {
+        try {
+          const ok = await sessionB.client.call<boolean>(
+            "sfu.callSetQualityPreference",
+            {
+              neighbourhoodUrl: NEIGHBOURHOOD,
+              roomName: ROOM_NAME,
+              preference: pref,
+            },
+          );
+          prefResults[pref] = ok;
+        } catch (e) {
+          prefResults[pref] = false;
+          metrics[`${pref}QualitySetError`] =
+            e instanceof Error ? e.message : String(e);
+        }
+      }
+      metrics["preferenceApiResults"] = prefResults;
+      allPrefsAccepted = Object.values(prefResults).every(Boolean);
+      metrics["allPreferencesAccepted"] = allPrefsAccepted;
+
+      // Verify invalid preference gets rejected.
+      invalidRejected = false;
       try {
         await sessionB.client.call("sfu.callSetQualityPreference", {
           neighbourhoodUrl: NEIGHBOURHOOD,
           roomName: ROOM_NAME,
-          quality: "low",
+          preference: "ultra-4k",
         });
-      } catch (e) {
-        lowQualityError = e instanceof Error ? e.message : String(e);
+      } catch {
+        invalidRejected = true;
       }
-      metrics["lowQualitySetError"] = lowQualityError;
+      metrics["invalidPreferenceRejected"] = invalidRejected;
+
+      // ── Measure LOW quality ──
+      await sessionB.client.call("sfu.callSetQualityPreference", {
+        neighbourhoodUrl: NEIGHBOURHOOD,
+        roomName: ROOM_NAME,
+        preference: "low",
+      });
 
       const lowBitrate = await measureBitrateBps(peerB, MEASURE_WINDOW_MS);
       metrics["lowBitrateBps"] = lowBitrate;
@@ -151,17 +184,11 @@ export const t10SimulcastLayerSelection: Scenario = {
       });
 
       // ── Measure HIGH quality ──
-      let highQualityError: string | null = null;
-      try {
-        await sessionB.client.call("sfu.callSetQualityPreference", {
-          neighbourhoodUrl: NEIGHBOURHOOD,
-          roomName: ROOM_NAME,
-          quality: "high",
-        });
-      } catch (e) {
-        highQualityError = e instanceof Error ? e.message : String(e);
-      }
-      metrics["highQualitySetError"] = highQualityError;
+      await sessionB.client.call("sfu.callSetQualityPreference", {
+        neighbourhoodUrl: NEIGHBOURHOOD,
+        roomName: ROOM_NAME,
+        preference: "high",
+      });
 
       const highBitrate = await measureBitrateBps(peerB, MEASURE_WINDOW_MS);
       metrics["highBitrateBps"] = highBitrate;
@@ -221,7 +248,9 @@ export const t10SimulcastLayerSelection: Scenario = {
       metrics,
       samples,
       summary:
-        `T10: simulcast — lowBps=${metrics["lowBitrateBps"]} ` +
+        `T10: simulcast — allPrefsAccepted=${allPrefsAccepted} ` +
+        `invalidRejected=${invalidRejected} ` +
+        `lowBps=${metrics["lowBitrateBps"]} ` +
         `highBps=${metrics["highBitrateBps"]} ` +
         `ratio=${(metrics["highToLowRatio"] as number).toFixed(2)} ` +
         `effective=${metrics["layerSwitchEffective"]} ` +
