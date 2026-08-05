@@ -48,6 +48,7 @@ export const m2SfuToMesh: Scenario = {
         return {
           scenario: "m2-sfu-to-mesh",
           branch,
+          passed: true,
           startTime,
           endTime: Date.now(),
           durationMs: Date.now() - startTime,
@@ -70,6 +71,7 @@ export const m2SfuToMesh: Scenario = {
 
     const sfuPeers: WebRtcPeer[] = [];
     const wires: RenegotiationWire[] = [];
+    let passed = false;
     try {
       for (let i = 0; i < sessions.length; i++) {
         const s = sessions[i];
@@ -176,6 +178,9 @@ export const m2SfuToMesh: Scenario = {
         metrics["meshUploadBytesPerHost"] = meshUploads;
         metrics["meshUploadMean"] = mean(meshUploads);
         metrics["meshPacketsLostTotal"] = meshLost.reduce((a, b) => a + b, 0);
+
+        // Hard assertion: mesh phase shows media flowing on remaining peers.
+        passed = meshUploads.every((b) => b > 0);
       } finally {
         await Promise.all(meshHosts.map((h) => h.close().catch(() => {})));
       }
@@ -190,6 +195,7 @@ export const m2SfuToMesh: Scenario = {
     return {
       scenario: "m2-sfu-to-mesh",
       branch,
+      passed,
       startTime,
       endTime,
       durationMs: endTime - startTime,

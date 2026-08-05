@@ -12,7 +12,8 @@ export function consoleReport(results: ScenarioResult[]): void {
   console.log("=".repeat(80));
 
   for (const r of results) {
-    console.log(`\n┌─ ${r.scenario} [${r.branch}]`);
+    const verdict = r.passed ? "✅ PASS" : "❌ FAIL";
+    console.log(`\n┌─ ${r.scenario} [${r.branch}] ${verdict}`);
     console.log(`│  Duration: ${r.durationMs}ms`);
     console.log(`│  Summary: ${r.summary}`);
 

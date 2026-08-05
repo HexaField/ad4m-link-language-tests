@@ -239,9 +239,13 @@ export const t10SimulcastLayerSelection: Scenario = {
     }
 
     const endTime = Date.now();
+    // Hard gate: preference API must work correctly.
+    // Bitrate ratio stays soft — @roamhq/wrtc cannot produce simulcast layers.
+    const passed = allPrefsAccepted && invalidRejected;
     return {
       scenario: "t10-simulcast-layer-selection",
       branch,
+      passed,
       startTime,
       endTime,
       durationMs: endTime - startTime,

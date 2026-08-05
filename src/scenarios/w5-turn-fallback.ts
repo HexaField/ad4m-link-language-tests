@@ -53,6 +53,7 @@ export const w5TurnFallback: Scenario = {
         startTime,
         endTime: Date.now(),
         durationMs: Date.now() - startTime,
+        passed: true,
         metrics,
         samples,
         summary: `W5: SKIPPED — TURN_URL unset`,
@@ -128,6 +129,7 @@ export const w5TurnFallback: Scenario = {
       startTime,
       endTime,
       durationMs: endTime - startTime,
+      passed: Number(metrics["aliceDownloadBytes"] ?? 0) > 0 && Number(metrics["bobDownloadBytes"] ?? 0) > 0,
       metrics,
       samples,
       summary:

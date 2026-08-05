@@ -220,9 +220,14 @@ export const m3CascadeFailover: Scenario = {
     }
 
     const endTime = Date.now();
+    // Hard gate: all peers that were on A must successfully reconnect to B.
+    const reconnectCount = (metrics["reconnectSuccess"] as number) ?? 0;
+    const reconnectAttempts = (metrics["reconnectAttempts"] as number) ?? 0;
+    const passed = reconnectAttempts > 0 && reconnectCount === reconnectAttempts;
     return {
       scenario: "m3-cascade-failover",
       branch,
+      passed,
       startTime,
       endTime,
       durationMs: endTime - startTime,
@@ -230,7 +235,7 @@ export const m3CascadeFailover: Scenario = {
       samples,
       summary:
         `M3: failover — initial A=${metrics["initialNodeAParticipants"]}, B=${metrics["initialNodeBParticipants"]} → ` +
-        `reconnected ${metrics["reconnectSuccess"]}/${metrics["reconnectAttempts"]} in ${metrics["failoverMs"]}ms, ` +
+        `reconnected ${reconnectCount}/${reconnectAttempts} in ${metrics["failoverMs"]}ms, ` +
         `final B=${metrics["finalNodeBParticipants"]}`,
     };
   },

@@ -54,8 +54,7 @@ export class EventsClient {
             try {
               h(frame);
             } catch (e) {
-              /* swallow handler errors */
-              void e;
+              console.warn(`[events] handler for '${frame.type}' threw:`, e);
             }
           }
         }

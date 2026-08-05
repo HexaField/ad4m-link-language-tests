@@ -66,6 +66,7 @@ export const f8StuckRenegotiationRecovery: Scenario = {
     const wires: RenegotiationWire[] = [];
     let wireA: RenegotiationWire | null = null;
     let wireC: RenegotiationWire | null = null;
+    let passed = false;
 
     try {
       // ── Peer A: join normally, renegotiation wired ──
@@ -196,6 +197,7 @@ export const f8StuckRenegotiationRecovery: Scenario = {
       metrics["stuckPeerBCleared"] = renegA_afterC > renegA_afterB;
       metrics["recoverySuccessful"] =
         (metrics["peerA_receivedCTracks"] as boolean) === true;
+      passed = (metrics["peerA_receivedCTracks"] as boolean) === true;
     } finally {
       for (const w of wires) {
         try {
@@ -234,6 +236,7 @@ export const f8StuckRenegotiationRecovery: Scenario = {
     return {
       scenario: "f8-stuck-renegotiation-recovery",
       branch,
+      passed,
       startTime,
       endTime,
       durationMs: endTime - startTime,

@@ -143,6 +143,7 @@ export const s3PerspectiveScaling: Scenario = {
       startTime,
       endTime,
       durationMs: totalMs,
+      passed: true,
       metrics,
       samples,
       summary: `Created ${totalPerspectives} perspectives. Avg create time: ${avg(lastPhase.creationTimes).toFixed(1)}ms at 100 perspectives (${degradation.toFixed(2)}x degradation from 10). RSS growth: ${metrics.rssGrowthKb ? `${(metrics.rssGrowthKb / 1024).toFixed(1)}MB` : "N/A"}`,

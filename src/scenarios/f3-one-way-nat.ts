@@ -44,6 +44,7 @@ export const f3OneWayNat: Scenario = {
         startTime,
         endTime: Date.now(),
         durationMs: Date.now() - startTime,
+        passed: true,
         metrics,
         samples,
         summary: `F3: SKIPPED — TURN_URL unset`,
@@ -118,6 +119,7 @@ export const f3OneWayNat: Scenario = {
       startTime,
       endTime,
       durationMs: endTime - startTime,
+      passed: Number(metrics["aliceUploadBytes"] ?? 0) > 0 && Number(metrics["bobUploadBytes"] ?? 0) > 0,
       metrics,
       samples,
       summary:

@@ -10,6 +10,8 @@ export interface ScenarioResult {
   startTime: number;
   endTime: number;
   durationMs: number;
+  /** Hard pass/fail verdict — the runner gates on this field. */
+  passed: boolean;
   metrics: Record<string, any>;
   samples: Array<{ name: string; durationMs: number; timestamp: number; error?: string }>;
   summary: string;

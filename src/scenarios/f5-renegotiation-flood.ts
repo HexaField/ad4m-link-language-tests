@@ -58,6 +58,7 @@ export const f5RenegotiationFlood: Scenario = {
         return {
           scenario: "f5-renegotiation-flood",
           branch,
+          passed: true,
           startTime,
           endTime: Date.now(),
           durationMs: Date.now() - startTime,
@@ -71,6 +72,7 @@ export const f5RenegotiationFlood: Scenario = {
 
     const peers: F5Peer[] = [];
     let nextPeerId = 0;
+    let passed = false;
     try {
       // Steady state: 10 peers joined.
       for (let i = 0; i < STEADY_STATE_PEERS; i++) {
@@ -120,6 +122,7 @@ export const f5RenegotiationFlood: Scenario = {
         finalRooms.find((r) => r.roomName === ROOM_NAME)?.participantCount ?? -1;
       metrics["participantInvariant"] =
         metrics["initialParticipants"] === metrics["finalParticipants"];
+      passed = metrics["initialParticipants"] === metrics["finalParticipants"];
     } finally {
       for (const f5peer of peers) {
         try {
@@ -135,6 +138,7 @@ export const f5RenegotiationFlood: Scenario = {
     return {
       scenario: "f5-renegotiation-flood",
       branch,
+      passed,
       startTime,
       endTime,
       durationMs: endTime - startTime,

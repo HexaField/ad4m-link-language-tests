@@ -32,6 +32,7 @@ export const m4SfuOfflineFallback: Scenario = {
     const startTime = Date.now();
     const samples: ScenarioResult["samples"] = [];
     const metrics: Record<string, unknown> = {};
+    let passed = false;
 
     // Register the admin's DID as a neighbourhood member so the call
     // reaches the room-lookup path (not the membership gate).
@@ -80,6 +81,7 @@ export const m4SfuOfflineFallback: Scenario = {
       metrics["meshUploadBytesPerHost"] = uploads;
       metrics["meshPacketsLostPerHost"] = losses;
       metrics["meshAllConnected"] = uploads.every((b) => b > 0);
+      passed = rejectedCleanly && uploads.every((b) => b > 0);
     } finally {
       await Promise.all(hosts.map((h) => h.close().catch(() => {})));
     }
@@ -88,6 +90,7 @@ export const m4SfuOfflineFallback: Scenario = {
     return {
       scenario: "m4-sfu-offline-fallback",
       branch,
+      passed,
       startTime,
       endTime,
       durationMs: endTime - startTime,

@@ -46,6 +46,7 @@ export const f2SfuPacketLoss: Scenario = {
         startTime,
         endTime: Date.now(),
         durationMs: Date.now() - startTime,
+        passed: true,
         metrics,
         samples,
         summary: `F2: SKIPPED — ${metrics["skip_reason"]}`,
@@ -65,6 +66,7 @@ export const f2SfuPacketLoss: Scenario = {
           startTime,
           endTime: Date.now(),
           durationMs: Date.now() - startTime,
+          passed: true,
           metrics,
           samples,
           summary: `F2: SKIPPED — ${msg}`,
@@ -168,6 +170,7 @@ export const f2SfuPacketLoss: Scenario = {
       startTime,
       endTime,
       durationMs: endTime - startTime,
+      passed: Number(metrics["uploadMean"] ?? 0) > 0,
       metrics,
       samples,
       summary:

@@ -53,6 +53,7 @@ export const m1MeshToSfu: Scenario = {
         return {
           scenario: "m1-mesh-to-sfu",
           branch,
+          passed: true,
           startTime,
           endTime: Date.now(),
           durationMs: Date.now() - startTime,
@@ -95,6 +96,7 @@ export const m1MeshToSfu: Scenario = {
     const transitionStart = Date.now();
     const sfuPeers: WebRtcPeer[] = [];
     const wires: RenegotiationWire[] = [];
+    let passed = false;
     try {
       for (let i = 0; i < sessions.length; i++) {
         const s = sessions[i];
@@ -148,6 +150,9 @@ export const m1MeshToSfu: Scenario = {
       metrics["sfuVsMeshUploadRatio"] = +(
         (metrics["sfuUploadMean"] as number) / (metrics["meshUploadMean"] as number)
       ).toFixed(2);
+
+      // Hard assertion: SFU join succeeded and all peers sent media.
+      passed = sfuUploads.every((b) => b > 0);
     } finally {
       for (const w of wires) {
         try {
@@ -175,6 +180,7 @@ export const m1MeshToSfu: Scenario = {
     return {
       scenario: "m1-mesh-to-sfu",
       branch,
+      passed,
       startTime,
       endTime,
       durationMs: endTime - startTime,

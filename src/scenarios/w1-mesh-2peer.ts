@@ -100,6 +100,7 @@ export const w1Mesh2Peer: Scenario = {
       startTime,
       endTime,
       durationMs: endTime - startTime,
+      passed: Number(metrics["aliceBytesReceived"] ?? 0) > 0 && Number(metrics["bobBytesReceived"] ?? 0) > 0,
       metrics,
       samples,
       summary:

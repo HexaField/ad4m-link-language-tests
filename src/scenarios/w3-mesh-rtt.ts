@@ -78,6 +78,7 @@ export const w3MeshRtt: Scenario = {
       startTime,
       endTime,
       durationMs: endTime - startTime,
+      passed: Number(metrics["alice_rtt_samples"] ?? 0) > 0 && Number(metrics["bob_rtt_samples"] ?? 0) > 0,
       metrics,
       samples,
       summary:

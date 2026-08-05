@@ -55,6 +55,7 @@ export const t1Sfu5Peer: Scenario = {
 
     const peers: WebRtcPeer[] = [];
     const wires: RenegotiationWire[] = [];
+    let passed = false;
     try {
       for (let i = 0; i < sessions.length; i++) {
         const session = sessions[i];
@@ -124,6 +125,13 @@ export const t1Sfu5Peer: Scenario = {
       const room = rooms.find((r) => r.roomName === ROOM_NAME);
       metrics["serverReportedParticipants"] = room?.participantCount ?? -1;
       metrics["renegotiationsAppliedPerPeer"] = wires.map((w) => w.count());
+
+      // Hard assertions: every peer must receive media from the SFU.
+      const allReceived = downloads.every((b) => b > 0);
+      metrics["allPeersReceivedMedia"] = allReceived;
+      const participantsMatch = (room?.participantCount ?? -1) === peers.length;
+      metrics["participantsMatch"] = participantsMatch;
+      passed = allReceived && participantsMatch;
     } finally {
       for (const w of wires) {
         try {
@@ -162,12 +170,17 @@ export const t1Sfu5Peer: Scenario = {
     return {
       scenario: "t1-sfu-5peer",
       branch,
+      passed,
       startTime,
       endTime,
       durationMs: endTime - startTime,
       metrics,
       samples,
-      summary: `T1: SFU 5 peers — uploadMean=${metrics["uploadMean"]}B downloadMean=${metrics["downloadMean"]}B serverParticipants=${metrics["serverReportedParticipants"]}`,
+      summary:
+        `T1: SFU 5 peers — ` +
+        `mediaFlowing=${metrics["allPeersReceivedMedia"]} ` +
+        `uploadMean=${metrics["uploadMean"]}B downloadMean=${metrics["downloadMean"]}B ` +
+        `serverParticipants=${metrics["serverReportedParticipants"]}`,
     };
   },
 };

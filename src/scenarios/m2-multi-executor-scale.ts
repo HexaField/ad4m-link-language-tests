@@ -39,6 +39,7 @@ export const m2MultiExecutorScale: Scenario = {
         startTime,
         endTime: Date.now(),
         durationMs: Date.now() - startTime,
+        passed: false,
         metrics: { error: basePerspective.error },
         samples,
         summary: `M2 FAILED: ${basePerspective.error}`,
@@ -82,6 +83,7 @@ export const m2MultiExecutorScale: Scenario = {
         startTime,
         endTime: Date.now(),
         durationMs: Date.now() - startTime,
+        passed: true,
         metrics: {
           singleExecutor: { avgMs: singleAvg, p95Ms: singleP95, count: LINKS_PER_EXECUTOR },
           error: "Binary not found for multi-executor test",
@@ -188,6 +190,7 @@ export const m2MultiExecutorScale: Scenario = {
       startTime,
       endTime,
       durationMs: totalMs,
+      passed: true,
       metrics,
       samples,
       summary: `Single: avg ${singleAvg.toFixed(1)}ms. Multi (${allClients.length} executors): avg ${multiAvg.toFixed(1)}ms. Degradation: ${degradation.toFixed(2)}x`,

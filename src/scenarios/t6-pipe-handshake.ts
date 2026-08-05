@@ -198,7 +198,14 @@ export const t6PipeHandshake: Scenario = {
       metrics["uploadMean"] = mean(uploads);
       metrics["downloadMean"] = mean(downloads);
       metrics["renegotiationsAppliedPerPeer"] = wires.map((w) => w.count());
-      metrics["mediaAcrossPipeOk"] = downloads.some((b) => b > 0);
+      // Every peer must receive media — .every(), not .some().
+      const mediaAcrossPipeOk = downloads.every((b) => b > 0);
+      metrics["mediaAcrossPipeOk"] = mediaAcrossPipeOk;
+
+      // Hard pass/fail: handshake established, links point at the correct
+      // remote node, and media actually crossed the pipe for ALL peers.
+      const passed = handshakeSucceeded && linksValid && mediaAcrossPipeOk;
+      metrics["passed"] = passed;
 
       // Tear peers down (best-effort).
       for (const w of wires) {
@@ -224,6 +231,7 @@ export const t6PipeHandshake: Scenario = {
       return {
         scenario: "t6-pipe-handshake",
         branch,
+        passed,
         startTime,
         endTime,
         durationMs: endTime - startTime,
@@ -232,7 +240,7 @@ export const t6PipeHandshake: Scenario = {
         summary:
           `T6: cascade — pipes=${JSON.stringify(perNodePipeCounts)} ` +
           `linksValid=${linksValid} uploadMean=${metrics["uploadMean"]}B ` +
-          `downloadMean=${metrics["downloadMean"]}B mediaAcrossPipe=${metrics["mediaAcrossPipeOk"]} ` +
+          `downloadMean=${metrics["downloadMean"]}B mediaAcrossPipe=${mediaAcrossPipeOk} ` +
           `waitMs=${pipeWaitMs}`,
       };
     } finally {

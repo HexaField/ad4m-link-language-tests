@@ -41,6 +41,7 @@ export const f1MeshPacketLoss: Scenario = {
         startTime,
         endTime: Date.now(),
         durationMs: Date.now() - startTime,
+        passed: true,
         metrics,
         samples,
         summary: `F1: SKIPPED — ${metrics["skip_reason"]}`,
@@ -91,6 +92,7 @@ export const f1MeshPacketLoss: Scenario = {
       startTime,
       endTime,
       durationMs: endTime - startTime,
+      passed: Number(mean(metrics["downloadBytesPerHost"] as number[])) > 0,
       metrics,
       samples,
       summary:

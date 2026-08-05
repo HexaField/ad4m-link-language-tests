@@ -46,6 +46,7 @@ export const s1Sfu20Peer: Scenario = {
         return {
           scenario: "s1-sfu-20peer",
           branch,
+          passed: true,
           startTime,
           endTime: Date.now(),
           durationMs: Date.now() - startTime,
@@ -67,6 +68,7 @@ export const s1Sfu20Peer: Scenario = {
 
     const peers: WebRtcPeer[] = [];
     const wires: RenegotiationWire[] = [];
+    let passed = false;
     try {
       for (let i = 0; i < sessions.length; i++) {
         const s = sessions[i];
@@ -138,6 +140,14 @@ export const s1Sfu20Peer: Scenario = {
       metrics["serverReportedParticipants"] =
         rooms.find((r) => r.roomName === ROOM_NAME)?.participantCount ?? -1;
       metrics["renegotiationsAppliedPerPeer"] = wires.map((w) => w.count());
+
+      // Hard assertions: every peer must receive media from the SFU.
+      const allReceived = downloads.every((b) => b > 0);
+      metrics["allPeersReceivedMedia"] = allReceived;
+      const participantsMatch =
+        (metrics["serverReportedParticipants"] as number) === peers.length;
+      metrics["participantsMatch"] = participantsMatch;
+      passed = allReceived && participantsMatch;
     } finally {
       for (const w of wires) {
         try {
@@ -165,6 +175,7 @@ export const s1Sfu20Peer: Scenario = {
     return {
       scenario: "s1-sfu-20peer",
       branch,
+      passed,
       startTime,
       endTime,
       durationMs: endTime - startTime,

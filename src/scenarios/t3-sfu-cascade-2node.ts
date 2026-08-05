@@ -51,6 +51,7 @@ export const t3SfuCascade2Node: Scenario = {
     let cluster: Awaited<ReturnType<typeof startCluster>> | null = null;
     const peers: { peer: WebRtcPeer; node: CascadeNode; session: ClusterPeerSession }[] = [];
     let clusterSessions: ClusterPeerSession[] = [];
+    let passed = false;
 
     try {
       cluster = await startCluster({
@@ -174,6 +175,14 @@ export const t3SfuCascade2Node: Scenario = {
       metrics["peersPerNodeBalanced"] =
         metrics["nodeAParticipants"] === MAX_PER_NODE &&
         metrics["nodeBParticipants"] === PEER_COUNT - MAX_PER_NODE;
+
+      // Hard assertion: total peers equals expected AND each node received peers.
+      const totalPeers =
+        (metrics["nodeAParticipants"] as number) + (metrics["nodeBParticipants"] as number);
+      const noNodeEmpty =
+        (metrics["nodeAParticipants"] as number) > 0 &&
+        (metrics["nodeBParticipants"] as number) > 0;
+      passed = totalPeers === PEER_COUNT && noNodeEmpty;
     } finally {
       for (const { peer, node, session } of peers) {
         try {
@@ -198,6 +207,7 @@ export const t3SfuCascade2Node: Scenario = {
     return {
       scenario: "t3-sfu-cascade-2node",
       branch,
+      passed,
       startTime,
       endTime,
       durationMs: endTime - startTime,

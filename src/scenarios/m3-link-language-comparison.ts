@@ -104,6 +104,7 @@ export const m3LinkLanguageComparison: Scenario = {
           startTime,
           endTime: Date.now(),
           durationMs: Date.now() - startTime,
+          passed: true,
           metrics: { error: "Docker not available", dockerInstalled: false },
           samples,
           summary: "M3 SKIPPED: Docker not available on this machine.",
@@ -128,6 +129,7 @@ export const m3LinkLanguageComparison: Scenario = {
           startTime,
           endTime: Date.now(),
           durationMs: Date.now() - startTime,
+          passed: false,
           metrics: {
             error: `Docker compose failed: ${err.message?.substring(0, 200)}`,
             dockerStartAttemptMs: Math.round(dockerDuration),
@@ -247,6 +249,7 @@ export const m3LinkLanguageComparison: Scenario = {
         startTime,
         endTime,
         durationMs: totalMs,
+        passed: true,
         metrics,
         samples,
         summary: `Docker infra: ${healthyCount}/${services.length} healthy in ${(totalWaitMs / 1000).toFixed(1)}s. Local baseline at 1000 links: add=${baselineResults[1000]?.addAvgMs.toFixed(1)}ms, query=${baselineResults[1000]?.queryAvgMs.toFixed(0)}ms, ${baselineResults[1000]?.throughputLinksPerSec.toFixed(0)} links/s`,

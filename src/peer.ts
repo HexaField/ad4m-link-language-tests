@@ -292,6 +292,7 @@ function aggregateStats(reports: Map<string, any>): PeerStats {
   // through the report map after the loop.
   let localCandidateId: string | null = null;
   let remoteCandidateId: string | null = null;
+  let inboundRtpCount = 0;
   for (const report of reports.values()) {
     if (report.type === "outbound-rtp") {
       stats.bytesSent += report.bytesSent ?? 0;
@@ -306,6 +307,7 @@ function aggregateStats(reports: Map<string, any>): PeerStats {
       stats.packetsReceived += report.packetsReceived ?? 0;
       stats.packetsLost += report.packetsLost ?? 0;
       stats.jitter += report.jitter ?? 0;
+      inboundRtpCount++;
       stats.framesDecoded += report.framesDecoded ?? 0;
       stats.framesDropped += report.framesDropped ?? 0;
     } else if (report.type === "candidate-pair" && report.nominated) {
@@ -315,6 +317,10 @@ function aggregateStats(reports: Map<string, any>): PeerStats {
       localCandidateId = report.localCandidateId ?? null;
       remoteCandidateId = report.remoteCandidateId ?? null;
     }
+  }
+  // Average jitter across inbound-rtp reports (not sum).
+  if (inboundRtpCount > 1) {
+    stats.jitter /= inboundRtpCount;
   }
   if (localCandidateId) {
     const lc = reports.get(localCandidateId);

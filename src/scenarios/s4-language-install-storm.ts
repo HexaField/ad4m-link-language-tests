@@ -129,6 +129,7 @@ export const s4LanguageInstallStorm: Scenario = {
       startTime,
       endTime,
       durationMs: totalMs,
+      passed: true,
       metrics,
       samples,
       summary: `Concurrent batches [${CONCURRENT_BATCHES.join(",")}]: Last batch (${lastBatch.concurrency} concurrent) avg create: ${lastBatch.avgCreateMs.toFixed(1)}ms, avg link: ${lastBatch.avgLinkMs.toFixed(1)}ms, ${lastBatch.errors} errors. RSS growth: ${metrics.rssGrowthKb ? `${(metrics.rssGrowthKb / 1024).toFixed(1)}MB` : "N/A"}`,

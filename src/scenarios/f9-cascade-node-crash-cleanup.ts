@@ -271,9 +271,13 @@ export const f9CascadeNodeCrashCleanup: Scenario = {
     }
 
     const endTime = Date.now();
+    const stalePipeEvicted = metrics["stalePipeEvicted"] === true;
+    const nodeAResponsive = metrics["nodeA_stillResponsive"] === true;
+    const passed = stalePipeEvicted && nodeAResponsive;
     return {
       scenario: "f9-cascade-node-crash-cleanup",
       branch,
+      passed,
       startTime,
       endTime,
       durationMs: endTime - startTime,
@@ -283,8 +287,8 @@ export const f9CascadeNodeCrashCleanup: Scenario = {
         `F9: crash cleanup — pipeEstablished=${metrics["pipeEstablished"]} ` +
         `preCrashPipes=${metrics["preCrash_nodeA_pipeCount"]} ` +
         `postCrashPipes=${metrics["postCrash_nodeA_pipeCount"]} ` +
-        `evicted=${metrics["stalePipeEvicted"]} ` +
-        `nodeAResponsive=${metrics["nodeA_stillResponsive"]}`,
+        `evicted=${stalePipeEvicted} ` +
+        `nodeAResponsive=${nodeAResponsive}`,
     };
   },
 };

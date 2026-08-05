@@ -35,6 +35,7 @@ export const w1mMeshMultiMachine: Scenario = {
         startTime,
         endTime: Date.now(),
         durationMs: Date.now() - startTime,
+        passed: true,
         metrics: {
           skipped: true,
           skip_reason: "AD4M_REMOTE_PEER_URL not set — point at a peer-server",
@@ -157,6 +158,7 @@ export const w1mMeshMultiMachine: Scenario = {
       startTime,
       endTime,
       durationMs: endTime - startTime,
+      passed: Number(metrics["localBytesReceived"] ?? 0) > 0 && Number(metrics["remoteBytesReceived"] ?? 0) > 0,
       metrics,
       samples,
       summary:

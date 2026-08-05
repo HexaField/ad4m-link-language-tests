@@ -44,6 +44,7 @@ export const s3MaxParticipantsEnforced: Scenario = {
     const peers: { peer: WebRtcPeer; node: CascadeNode; session: ClusterPeerSession }[] = [];
     let clusterSessions: ClusterPeerSession[] = [];
     const overflowed: { idx: number; reason: string }[] = [];
+    let passed = false;
 
     try {
       cluster = await startCluster({
@@ -145,6 +146,7 @@ export const s3MaxParticipantsEnforced: Scenario = {
       metrics["landedCount"] = peers.length;
       metrics["expectedOverflow"] = TOTAL_PEERS - cluster.nodes.length * MAX_PER_NODE;
       metrics["capacityEnforced"] = Object.values(counts).every((c) => c <= MAX_PER_NODE);
+      passed = Object.values(counts).every((c) => c <= MAX_PER_NODE);
 
       samples.push({
         name: "s3_join_window",
@@ -175,6 +177,7 @@ export const s3MaxParticipantsEnforced: Scenario = {
     return {
       scenario: "s3-max-participants",
       branch,
+      passed,
       startTime,
       endTime,
       durationMs: endTime - startTime,

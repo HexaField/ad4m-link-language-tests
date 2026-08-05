@@ -42,6 +42,7 @@ export const f6NonMemberJoin: Scenario = {
 
     let sessions: PeerSession[] = [];
     let peer: WebRtcPeer | null = null;
+    let passed = false;
 
     try {
       // Start a room under a neighbourhood:// URL (not windtunnel://)
@@ -129,6 +130,7 @@ export const f6NonMemberJoin: Scenario = {
           e instanceof Error ? e.message : String(e);
       }
       metrics["sfuStillResponsive"] = listOk;
+      passed = joinRejected;
     } finally {
       if (peer) {
         try {
@@ -152,6 +154,7 @@ export const f6NonMemberJoin: Scenario = {
     return {
       scenario: "f6-non-member-join",
       branch,
+      passed,
       startTime,
       endTime,
       durationMs: endTime - startTime,

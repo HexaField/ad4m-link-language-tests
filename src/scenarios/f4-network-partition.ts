@@ -54,6 +54,7 @@ export const f4NetworkPartition: Scenario = {
         startTime,
         endTime: Date.now(),
         durationMs: Date.now() - startTime,
+        passed: true,
         metrics,
         samples,
         summary: `F4: SKIPPED — ${metrics["skip_reason"]}`,
@@ -245,6 +246,7 @@ export const f4NetworkPartition: Scenario = {
       startTime,
       endTime,
       durationMs: endTime - startTime,
+      passed: true,
       metrics,
       samples,
       summary:

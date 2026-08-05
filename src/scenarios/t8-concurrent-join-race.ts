@@ -64,6 +64,7 @@ export const t8ConcurrentJoinRace: Scenario = {
 
     const peers: WebRtcPeer[] = [];
     const wires: RenegotiationWire[] = [];
+    let passed = false;
 
     try {
       // Phase 1: prepare all peers — attach streams, wire renegotiation,
@@ -209,6 +210,7 @@ export const t8ConcurrentJoinRace: Scenario = {
       metrics["stuckPeers"] = stuckPeers;
       metrics["allPeersSettled"] =
         totalRenegotiations >= expectedTotal && zeroPeers <= 1;
+      passed = successfulJoins === PEER_COUNT && totalRenegotiations >= expectedTotal;
     } finally {
       for (const w of wires) {
         try {
@@ -247,6 +249,7 @@ export const t8ConcurrentJoinRace: Scenario = {
     return {
       scenario: "t8-concurrent-join-race",
       branch,
+      passed,
       startTime,
       endTime,
       durationMs: endTime - startTime,

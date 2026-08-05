@@ -221,6 +221,7 @@ async function main() {
       results.push({
         scenario: scenario.id,
         branch: args.label,
+        passed: false,
         startTime: start,
         endTime: Date.now(),
         durationMs: Date.now() - start,

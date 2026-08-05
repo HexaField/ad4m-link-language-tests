@@ -71,6 +71,7 @@ export const w2Mesh4Peer: Scenario = {
       startTime,
       endTime,
       durationMs: endTime - startTime,
+      passed: Number(metrics["downloadMean"] ?? 0) > 0,
       metrics,
       samples,
       summary:

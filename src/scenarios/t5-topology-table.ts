@@ -119,6 +119,7 @@ export const t5TopologyTable: Scenario = {
     return {
       scenario: "t5-topology-table",
       branch,
+      passed: failures.length === 0,
       startTime,
       endTime,
       durationMs: endTime - startTime,

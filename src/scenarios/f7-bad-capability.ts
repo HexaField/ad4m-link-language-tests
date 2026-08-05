@@ -79,9 +79,11 @@ export const f7BadCapability: Scenario = {
     const endTime = Date.now();
     const guarded =
       !metrics["wsConnectedWithBadToken"] || metrics["rpcRejected"] === true;
+    const passed = guarded && goodClientStillOk;
     return {
       scenario: "f7-bad-capability",
       branch,
+      passed,
       startTime,
       endTime,
       durationMs: endTime - startTime,

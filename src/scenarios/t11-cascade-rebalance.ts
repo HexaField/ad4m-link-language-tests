@@ -202,10 +202,11 @@ export const t11CascadeRebalance: Scenario = {
         return {
           scenario: "t11",
           branch,
+          passed: false,
           startTime,
           endTime,
           durationMs: endTime - startTime,
-          summary: `T11: FAIL — no sfu-migrate event within ${MIGRATE_TIMEOUT_MS}ms`,
+          summary: `T11: no sfu-migrate event within ${MIGRATE_TIMEOUT_MS}ms`,
           metrics,
           samples,
         };
@@ -229,14 +230,15 @@ export const t11CascadeRebalance: Scenario = {
       return {
         scenario: "t11",
         branch,
+        passed: allCorrect,
         startTime,
         endTime,
         durationMs: endTime - startTime,
         summary: allCorrect
-          ? `T11: PASS — rebalance migrate event received in ${migrateLatencyMs}ms, ` +
+          ? `T11: rebalance migrate event received in ${migrateLatencyMs}ms, ` +
             `target=${migrateResult.targetDid.slice(-8)}, ` +
             `migrateTo=${node1Did.slice(-8)}`
-          : `T11: FAIL — migrate event received but incorrect: ` +
+          : `T11: migrate event incorrect — ` +
             `targetCorrect=${correctTarget}, roomCorrect=${correctRoom}`,
         metrics,
         samples,

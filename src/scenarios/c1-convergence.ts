@@ -92,6 +92,7 @@ export const c1Convergence: Scenario = {
       startTime,
       endTime: Date.now(),
       durationMs: Date.now() - startTime,
+      passed: !!extra.skipped,
       metrics: { language: langId, converged: false, ...extra },
       samples,
       summary,
@@ -336,6 +337,7 @@ export const c1Convergence: Scenario = {
         startTime,
         endTime,
         durationMs: endTime - startTime,
+        passed: converged,
         metrics,
         samples,
         summary: converged

@@ -66,6 +66,7 @@ export const t7SfuCascadeMedia: Scenario = {
     let sessions: ClusterPeerSession[] = [];
     const peers: WebRtcPeer[] = [];
     const wires: RenegotiationWire[] = [];
+    let passed = false;
 
     try {
       // Open the room on both nodes.
@@ -196,6 +197,8 @@ export const t7SfuCascadeMedia: Scenario = {
       const bothReceived = downloads.every((b) => b > 0);
       metrics["bothPeersReceivedMedia"] = bothReceived;
       metrics["mediaAcrossPipeProven"] = bothReceived;
+      const pipeEstablished = pipeCounts.every((c) => c >= 1);
+      passed = pipeEstablished && bothReceived;
     } finally {
       for (const w of wires) {
         try {
@@ -236,6 +239,7 @@ export const t7SfuCascadeMedia: Scenario = {
     return {
       scenario: "t7-sfu-cascade-media",
       branch,
+      passed,
       startTime,
       endTime,
       durationMs: endTime - startTime,

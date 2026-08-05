@@ -22,7 +22,7 @@ import { InstrumentedClient } from "./client.js";
 const BIN =
   process.env.AD4M_EXECUTOR_BIN ??
   "../ad4m/target/release/ad4m-executor";
-const ADMIN_TOKEN = process.env.AD4M_ADMIN_TOKEN ?? "test-admin-token";
+const ADMIN_TOKEN = process.env.AD4M_ADMIN_TOKEN ?? "test123";
 
 export interface CascadeNode {
   id: string;

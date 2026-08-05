@@ -79,6 +79,7 @@ export const t9TrackDidAttribution: Scenario = {
     const peers: WebRtcPeer[] = [];
     const wires: RenegotiationWire[] = [];
     const streamMappings: Array<{ peerIdx: number; mapping: string[] }> = [];
+    let passed = false;
 
     try {
       // Join each peer sequentially so the renegotiation pipeline
@@ -182,6 +183,9 @@ export const t9TrackDidAttribution: Scenario = {
       const misattributions = attributionResults.filter((r) => !r.correct);
       metrics["misattributionCount"] = misattributions.length;
       metrics["misattributionDetails"] = misattributions;
+      passed =
+        (metrics["allAttributionsCorrect"] as boolean) === true &&
+        misattributions.length === 0;
     } finally {
       for (const w of wires) {
         try {
@@ -220,6 +224,7 @@ export const t9TrackDidAttribution: Scenario = {
     return {
       scenario: "t9-track-did-attribution",
       branch,
+      passed,
       startTime,
       endTime,
       durationMs: endTime - startTime,

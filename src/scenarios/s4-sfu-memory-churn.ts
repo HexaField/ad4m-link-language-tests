@@ -42,6 +42,7 @@ export const s4SfuMemoryChurn: Scenario = {
     const startTime = Date.now();
     const samples: ScenarioResult["samples"] = [];
     const metrics: Record<string, unknown> = {};
+    let passed = false;
 
     await admin.call("sfu.startRoom", {
       neighbourhoodUrl: NEIGHBOURHOOD,
@@ -122,6 +123,7 @@ export const s4SfuMemoryChurn: Scenario = {
       }
       metrics["rssTimeline"] = rssTimeline;
       metrics["totalPeersJoined"] = nextPeerId;
+      passed = metrics["rssWithinBudget"] === true;
     } finally {
       // Drain remaining active peers.
       for (const ap of activePeers) {
@@ -145,6 +147,7 @@ export const s4SfuMemoryChurn: Scenario = {
     return {
       scenario: "s4-sfu-memory-churn",
       branch,
+      passed,
       startTime,
       endTime,
       durationMs: endTime - startTime,

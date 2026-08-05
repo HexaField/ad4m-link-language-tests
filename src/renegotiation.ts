@@ -38,6 +38,8 @@ export interface RenegotiationWire {
   detach: () => Promise<void>;
   /** Number of renegotiations applied so far. */
   count: () => number;
+  /** Number of renegotiation attempts that failed. */
+  failures: () => number;
 }
 
 export async function wireRenegotiation(cfg: RenegotiationWireConfig): Promise<RenegotiationWire> {
@@ -49,13 +51,12 @@ export async function wireRenegotiation(cfg: RenegotiationWireConfig): Promise<R
   await events.connect();
 
   let applied = 0;
+  let failed = 0;
   let pending: Promise<void> = Promise.resolve();
 
   const off = events.on("sfu-call-renegotiation-offer", (frame: EventFrame) => {
     pending = pending.then(() => applyOffer(frame).catch((e) => {
-      // Surface but don't kill the scenario — the test asserts on
-      // bandwidth, the absence of a renegotiation will show up there.
-      // eslint-disable-next-line no-console
+      failed += 1;
       console.error(`[renegotiation:${cfg.peer.id}] apply failed:`, e);
     }));
   });
@@ -90,6 +91,9 @@ export async function wireRenegotiation(cfg: RenegotiationWireConfig): Promise<R
     },
     count() {
       return applied;
+    },
+    failures() {
+      return failed;
     },
   };
 }

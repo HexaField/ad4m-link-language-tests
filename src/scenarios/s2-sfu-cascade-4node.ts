@@ -189,9 +189,11 @@ export const s2SfuCascade4Node: Scenario = {
     }
 
     const endTime = Date.now();
+    const distributionOk = metrics["distributionOk"] === true;
     return {
       scenario: "s2-sfu-cascade-4node",
       branch,
+      passed: distributionOk,
       startTime,
       endTime,
       durationMs: endTime - startTime,
@@ -200,7 +202,7 @@ export const s2SfuCascade4Node: Scenario = {
       summary:
         `S2: 4-node cascade — peers=${PEER_COUNT}, total=${metrics["totalLanded"]}, ` +
         `[min=${metrics["minPerNodeActual"]}, max=${metrics["maxPerNodeActual"]}] ` +
-        `downloadMean=${metrics["downloadMean"]}B (ok=${metrics["distributionOk"]})`,
+        `downloadMean=${metrics["downloadMean"]}B (ok=${distributionOk})`,
     };
   },
 };

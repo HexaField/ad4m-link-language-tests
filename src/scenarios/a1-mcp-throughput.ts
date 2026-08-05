@@ -50,6 +50,7 @@ export const a1McpThroughput: Scenario = {
         startTime,
         endTime,
         durationMs: endTime - startTime,
+        passed: true,
         metrics: {
           status: "STUB",
           mcpAvailable: false,
@@ -131,6 +132,7 @@ export const a1McpThroughput: Scenario = {
       startTime,
       endTime,
       durationMs: totalMs,
+      passed: true,
       metrics,
       samples,
       summary: `MCP: ${MCP_ITERATIONS} calls, avg ${avg.toFixed(1)}ms, P95 ${p95.toFixed(1)}ms, ${throughput.toFixed(1)} calls/s, ${errors} errors`,

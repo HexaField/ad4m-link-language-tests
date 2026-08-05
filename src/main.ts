@@ -183,12 +183,14 @@ async function runScenariosForBranch(
       try {
         const result = await scenario.run(ctx);
         results.push(result);
-        console.log(`[runner] ${scenario.id} complete: ${result.summary}`);
+        const verdict = result.passed ? "PASS" : "FAIL";
+        console.log(`[runner] ${scenario.id} ${verdict}: ${result.summary}`);
       } catch (err: any) {
         console.error(`[runner] ${scenario.id} CRASHED: ${err.message}`);
         results.push({
           scenario: `${scenario.id}-${scenario.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/-+$/, "")}`,
           branch,
+          passed: false,
           startTime: Date.now(),
           endTime: Date.now(),
           durationMs: 0,
@@ -204,6 +206,7 @@ async function runScenariosForBranch(
       results.push({
         scenario: `${scenario.id}-${scenario.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/-+$/, "")}`,
         branch,
+        passed: false,
         startTime: Date.now(),
         endTime: Date.now(),
         durationMs: 0,
@@ -315,7 +318,21 @@ async function main(): Promise<void> {
     comparisonReport(allResults, join(RESULTS_DIR, "comparison.md"));
   }
 
-  console.log("\n[runner] All done! Results in ./results/");
+  // Count pass/fail across all branches
+  let totalPassed = 0;
+  let totalFailed = 0;
+  for (const [, branchResults] of allResults) {
+    for (const r of branchResults) {
+      if (r.passed) totalPassed++;
+      else totalFailed++;
+    }
+  }
+
+  console.log(`\n[runner] Done — ${totalPassed} passed, ${totalFailed} failed.`);
+  if (totalFailed > 0) {
+    console.error(`[runner] ${totalFailed} scenario(s) FAILED.`);
+    process.exit(1);
+  }
 }
 
 main().catch((err) => {

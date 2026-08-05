@@ -73,6 +73,7 @@ export const w4MeshBandwidthScaling: Scenario = {
       startTime,
       endTime,
       durationMs: endTime - startTime,
+      passed: true,
       metrics,
       samples,
       summary:
