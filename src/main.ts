@@ -33,6 +33,8 @@ import {
   // SFU scale
   s1Sfu20Peer, s2SfuCascade4Node, s3MaxParticipantsEnforced,
   s4SfuMemoryChurn,
+  // SFU rebalancing
+  t11CascadeRebalance,
 } from "./scenarios/index.js";
 import { consoleReport, jsonReport, comparisonReport } from "./reporters.js";
 import { config, validateAdamRepo } from "./config.js";
@@ -66,6 +68,8 @@ const ALL_SCENARIOS: Scenario[] = [
   // SFU scale
   s1Sfu20Peer, s2SfuCascade4Node, s3MaxParticipantsEnforced,
   s4SfuMemoryChurn,
+  // SFU rebalancing
+  t11CascadeRebalance,
 ];
 
 function parseArgs() {

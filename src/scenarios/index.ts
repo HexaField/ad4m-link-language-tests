@@ -66,3 +66,4 @@ export { f4NetworkPartition } from "./f4-network-partition.js";
 export { s2SfuCascade4Node } from "./s2-sfu-cascade-4node.js";
 export { s3MaxParticipantsEnforced } from "./s3-max-participants.js";
 export { s4SfuMemoryChurn } from "./s4-sfu-memory-churn.js";
+export { t11CascadeRebalance } from "./t11-cascade-rebalance.js";
