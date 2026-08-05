@@ -67,3 +67,6 @@ export { s2SfuCascade4Node } from "./s2-sfu-cascade-4node.js";
 export { s3MaxParticipantsEnforced } from "./s3-max-participants.js";
 export { s4SfuMemoryChurn } from "./s4-sfu-memory-churn.js";
 export { t11CascadeRebalance } from "./t11-cascade-rebalance.js";
+export { t12DeferredTracks } from "./t12-deferred-tracks.js";
+export { t13PeerDepartureMedia } from "./t13-peer-departure-media.js";
+export { t14MediaRoutingCorrectness } from "./t14-media-routing-correctness.js";

@@ -17,7 +17,7 @@
  */
 
 import { Scenario, ScenarioContext, ScenarioResult } from "../scenario.js";
-import { WebRtcPeer, PeerStats } from "../peer.js";
+import { WebRtcPeer, PeerStats, DetectedTone } from "../peer.js";
 import { provisionPeers, disconnectPeers, registerSfuMembers } from "../users.js";
 import { wireRenegotiation, RenegotiationWire } from "../renegotiation.js";
 
@@ -66,6 +66,9 @@ export const s1Sfu20Peer: Scenario = {
     });
     await registerSfuMembers({ admin: client, neighbourhoodUrl: NEIGHBOURHOOD, sessions });
 
+    // Build tone list before the peer loop — one frequency per peer.
+    const TONES = sessions.map((_, i) => 440 + i * 12);
+
     const peers: WebRtcPeer[] = [];
     const wires: RenegotiationWire[] = [];
     let passed = false;
@@ -73,8 +76,9 @@ export const s1Sfu20Peer: Scenario = {
       for (let i = 0; i < sessions.length; i++) {
         const s = sessions[i];
         const peer = new WebRtcPeer(s.label, {
-          audioToneHz: 440 + i * 12,
+          audioToneHz: TONES[i],
         });
+        peer.enableAudioFingerprinting(TONES);
         await peer.attachSyntheticStream();
         peers.push(peer);
         const wire = await wireRenegotiation({
@@ -147,7 +151,29 @@ export const s1Sfu20Peer: Scenario = {
       const participantsMatch =
         (metrics["serverReportedParticipants"] as number) === peers.length;
       metrics["participantsMatch"] = participantsMatch;
-      passed = allReceived && participantsMatch;
+
+      // Frequency-based routing verification (relaxed for 20 peers).
+      // With 20 peers some tracks may not accumulate enough samples in
+      // the measurement window — require each peer to detect at least
+      // half the other peers' tones.
+      const toneResults: Array<{ peer: string; detected: DetectedTone[] }> = [];
+      let routingCorrect = true;
+      const halfOtherCount = Math.floor((peers.length - 1) / 2);
+      for (let i = 0; i < peers.length; i++) {
+        const detected = peers[i].getDetectedTones();
+        toneResults.push({ peer: sessions[i].label, detected });
+        const otherTones = TONES.filter((_, j) => j !== i);
+        const detectedHz = new Set(detected.map((d) => d.dominantHz));
+        const matched = otherTones.filter((hz) => detectedHz.has(hz));
+        if (matched.length < halfOtherCount && detected.length > 0) {
+          // Fewer than half the expected tones detected — routing suspect.
+          routingCorrect = false;
+        }
+      }
+      metrics["toneDetection"] = toneResults;
+      metrics["routingCorrect"] = routingCorrect;
+
+      passed = allReceived && participantsMatch && routingCorrect;
     } finally {
       for (const w of wires) {
         try {
@@ -184,7 +210,8 @@ export const s1Sfu20Peer: Scenario = {
       summary:
         `S1: SFU 20 peers — uploadMean=${metrics["uploadMean"]}B (sd=${metrics["uploadStddev"]}B) ` +
         `downloadMean=${metrics["downloadMean"]}B packetsLostTotal=${metrics["packetsLostTotal"]} ` +
-        `serverParticipants=${metrics["serverReportedParticipants"]}`,
+        `serverParticipants=${metrics["serverReportedParticipants"]} ` +
+        `routingCorrect=${metrics["routingCorrect"]}`,
     };
   },
 };

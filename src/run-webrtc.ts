@@ -44,6 +44,9 @@ import { m3CascadeFailover } from "./scenarios/m3-cascade-failover.js";
 import { f4NetworkPartition } from "./scenarios/f4-network-partition.js";
 import { s2SfuCascade4Node } from "./scenarios/s2-sfu-cascade-4node.js";
 import { s3MaxParticipantsEnforced } from "./scenarios/s3-max-participants.js";
+import { t12DeferredTracks } from "./scenarios/t12-deferred-tracks.js";
+import { t13PeerDepartureMedia } from "./scenarios/t13-peer-departure-media.js";
+import { t14MediaRoutingCorrectness } from "./scenarios/t14-media-routing-correctness.js";
 import { InstrumentedClient } from "./client.js";
 import type { Scenario, ScenarioContext, ScenarioResult } from "./scenario.js";
 
@@ -107,6 +110,9 @@ function pick(ids: string[]): Scenario[] {
     s1: s1Sfu20Peer,
     s2: s2SfuCascade4Node,
     s3: s3MaxParticipantsEnforced,
+    t12: t12DeferredTracks,
+    t13: t13PeerDepartureMedia,
+    t14: t14MediaRoutingCorrectness,
   };
   if (ids.includes("all")) return Object.values(registry);
   const picked: Scenario[] = [];
@@ -155,7 +161,7 @@ async function main() {
   // logic check; the cascade/packet-loss stubs short-circuit before
   // touching the client.
   const liveExecutorScenarioIds = new Set([
-    "t1", "t2", "t3", "t4", // T1-T4 — t3/t4 are stubs but registry stays uniform
+    "t1", "t2", "t3", "t4", "t12", "t13", "t14",
     "m1", "m2", "m3", "m4",
     "f1", "f2", "f3", "f4", "f5", "f6", "f7",
     "s1", "s2", "s3",

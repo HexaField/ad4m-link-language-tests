@@ -19,7 +19,7 @@
  */
 
 import { Scenario, ScenarioContext, ScenarioResult } from "../scenario.js";
-import { WebRtcPeer, PeerStats } from "../peer.js";
+import { WebRtcPeer, PeerStats, DetectedTone } from "../peer.js";
 import { startCluster } from "../cascade.js";
 import {
   provisionClusterPeers,
@@ -62,6 +62,9 @@ export const t7SfuCascadeMedia: Scenario = {
       gossipBasePort: GOSSIP_BASE,
     });
     metrics["nodeDids"] = cluster.nodes.map((n) => n.did);
+
+    // Build tone list — one frequency per peer (2 peers, step 80 Hz).
+    const TONES = [440, 520];
 
     let sessions: ClusterPeerSession[] = [];
     const peers: WebRtcPeer[] = [];
@@ -106,8 +109,9 @@ export const t7SfuCascadeMedia: Scenario = {
         }
 
         const peer = new WebRtcPeer(session.label, {
-          audioToneHz: 440 + i * 80,
+          audioToneHz: TONES[i],
         });
+        peer.enableAudioFingerprinting(TONES);
         await peer.attachSyntheticStream();
         peers.push(peer);
 
@@ -198,7 +202,26 @@ export const t7SfuCascadeMedia: Scenario = {
       metrics["bothPeersReceivedMedia"] = bothReceived;
       metrics["mediaAcrossPipeProven"] = bothReceived;
       const pipeEstablished = pipeCounts.every((c) => c >= 1);
-      passed = pipeEstablished && bothReceived;
+
+      // Strict frequency verification: each peer MUST detect exactly
+      // the other peer's tone — proving media crossed the pipe.
+      const toneResults: Array<{ peer: string; detected: DetectedTone[] }> = [];
+      let routingCorrect = true;
+      for (let i = 0; i < peers.length; i++) {
+        const detected = peers[i].getDetectedTones();
+        toneResults.push({ peer: sessions[i].label, detected });
+        const expectedHz = TONES[1 - i]; // the OTHER peer's frequency
+        const detectedHz = new Set(detected.map((d) => d.dominantHz));
+        if (!detectedHz.has(expectedHz)) {
+          // Failed to detect the other peer's tone — media did not
+          // cross the pipe correctly.
+          routingCorrect = false;
+        }
+      }
+      metrics["toneDetection"] = toneResults;
+      metrics["routingCorrect"] = routingCorrect;
+
+      passed = pipeEstablished && bothReceived && routingCorrect;
     } finally {
       for (const w of wires) {
         try {
@@ -250,7 +273,8 @@ export const t7SfuCascadeMedia: Scenario = {
         `pipeWaitMs=${metrics["pipeWaitMs"]} ` +
         `uploads=[${(metrics["uploadBytesPerPeer"] as number[] ?? []).join(",")}]B ` +
         `downloads=[${(metrics["downloadBytesPerPeer"] as number[] ?? []).join(",")}]B ` +
-        `mediaProven=${metrics["mediaAcrossPipeProven"]}`,
+        `mediaProven=${metrics["mediaAcrossPipeProven"]} ` +
+        `routingCorrect=${metrics["routingCorrect"]}`,
     };
   },
 };

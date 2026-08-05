@@ -61,6 +61,110 @@ export interface PeerStats {
   simulcastLayerInUse: "f" | "h" | "q" | null;
 }
 
+// ---------------------------------------------------------------------------
+// Goertzel filter — detect energy at a specific frequency in PCM samples.
+//
+// Returns the magnitude (unitless, proportional to amplitude²) for
+// `targetHz` over `samples.length` samples at the given `sampleRate`.
+// ---------------------------------------------------------------------------
+export function goertzelMagnitude(
+  samples: Int16Array,
+  sampleRate: number,
+  targetHz: number,
+): number {
+  const N = samples.length;
+  if (N === 0) return 0;
+  const k = Math.round((N * targetHz) / sampleRate);
+  const w = (2 * Math.PI * k) / N;
+  const coeff = 2 * Math.cos(w);
+  let s1 = 0;
+  let s2 = 0;
+  for (let i = 0; i < N; i++) {
+    const s0 = samples[i] + coeff * s1 - s2;
+    s2 = s1;
+    s1 = s0;
+  }
+  return Math.sqrt(s1 * s1 + s2 * s2 - coeff * s1 * s2);
+}
+
+/** Result of frequency detection on a single received audio track. */
+export interface DetectedTone {
+  /** Track ID (from the MediaStreamTrack). */
+  trackId: string;
+  /** Dominant frequency in Hz (highest Goertzel magnitude). */
+  dominantHz: number;
+  /** Goertzel magnitude at the dominant frequency. */
+  magnitude: number;
+  /** Total PCM samples analysed. */
+  samplesAnalysed: number;
+}
+
+/**
+ * Accumulates raw PCM from an RTCAudioSink and runs Goertzel detection
+ * against a set of candidate frequencies once enough samples arrive.
+ */
+class AudioFingerprinter {
+  private sink: any;
+  private buffer: Int16Array[] = [];
+  private totalSamples = 0;
+  private readonly candidateHz: number[];
+  private readonly sampleRate = 48000;
+  /** Accumulate at least this many samples before analysing (~0.5s). */
+  private readonly minSamples = 24000;
+  private _result: { hz: number; magnitude: number } | null = null;
+
+  constructor(track: any, candidateHz: number[], wrtcImpl: any) {
+    this.candidateHz = candidateHz;
+    const { RTCAudioSink } = wrtcImpl.nonstandard;
+    this.sink = new RTCAudioSink(track);
+    this.sink.ondata = (data: {
+      samples: Int16Array;
+      sampleRate: number;
+    }) => {
+      if (this._result) return; // already resolved
+      this.buffer.push(new Int16Array(data.samples)); // copy — the buffer gets reused
+      this.totalSamples += data.samples.length;
+      if (this.totalSamples >= this.minSamples) {
+        this.analyse();
+      }
+    };
+  }
+
+  private analyse(): void {
+    // Concatenate buffered frames into one contiguous array.
+    const all = new Int16Array(this.totalSamples);
+    let offset = 0;
+    for (const chunk of this.buffer) {
+      all.set(chunk, offset);
+      offset += chunk.length;
+    }
+    this.buffer = []; // free memory
+
+    let bestHz = 0;
+    let bestMag = 0;
+    for (const hz of this.candidateHz) {
+      const mag = goertzelMagnitude(all, this.sampleRate, hz);
+      if (mag > bestMag) {
+        bestMag = mag;
+        bestHz = hz;
+      }
+    }
+    this._result = { hz: bestHz, magnitude: bestMag };
+  }
+
+  get result(): { hz: number; magnitude: number } | null {
+    return this._result;
+  }
+
+  get samplesCollected(): number {
+    return this.totalSamples;
+  }
+
+  stop(): void {
+    if (!this.sink.stopped) this.sink.stop();
+  }
+}
+
 export interface PeerOptions {
   /** Audio tone in Hz so receivers can identify the speaker. */
   audioToneHz?: number;
@@ -90,11 +194,15 @@ export class WebRtcPeer extends EventEmitter {
   private statsTimer: NodeJS.Timeout | null = null;
   private firstFrameAt: number | null = null;
   private lastStats: PeerStats | null = null;
+  private fingerprinters: AudioFingerprinter[] = [];
+  private fingerprintCandidates: number[] | null = null;
+  private wrtcImpl: any;
 
   constructor(id: string, opts: PeerOptions = {}) {
     super();
     this.id = id;
     const impl = opts.wrtcImpl ?? wrtc;
+    this.wrtcImpl = impl;
     if (!impl) {
       throw new Error(
         "WebRtcPeer: @roamhq/wrtc not available. Run `npm install --include=optional @roamhq/wrtc` " +
@@ -109,10 +217,54 @@ export class WebRtcPeer extends EventEmitter {
     this.pc.addEventListener("track", (event: any) => {
       if (this.firstFrameAt === null) this.firstFrameAt = Date.now();
       this.emit("remote-track", { track: event.track, streams: event.streams });
+      // Auto-fingerprint audio tracks when enabled.
+      if (
+        this.fingerprintCandidates &&
+        event.track &&
+        event.track.kind === "audio"
+      ) {
+        const fp = new AudioFingerprinter(
+          event.track,
+          this.fingerprintCandidates,
+          this.wrtcImpl,
+        );
+        this.fingerprinters.push(fp);
+      }
     });
     this.pc.addEventListener("iceconnectionstatechange", () => {
       this.emit("ice-state", this.pc.iceConnectionState);
     });
+  }
+
+  /**
+   * Enable audio fingerprinting on all future received audio tracks.
+   * Pass the list of candidate frequencies (the tone Hz values used by
+   * each peer in the room).  Call BEFORE media starts flowing.
+   */
+  enableAudioFingerprinting(candidateHz: number[]): void {
+    this.fingerprintCandidates = candidateHz;
+  }
+
+  /**
+   * Return frequency detection results for every received audio track.
+   * Each entry maps a received track to the dominant frequency detected
+   * in its PCM stream.  Returns only tracks that have collected enough
+   * samples for analysis (~0.5s of audio).
+   */
+  getDetectedTones(): DetectedTone[] {
+    const tones: DetectedTone[] = [];
+    for (const fp of this.fingerprinters) {
+      const r = fp.result;
+      if (r) {
+        tones.push({
+          trackId: `track-${tones.length}`,
+          dominantHz: r.hz,
+          magnitude: r.magnitude,
+          samplesAnalysed: fp.samplesCollected,
+        });
+      }
+    }
+    return tones;
   }
 
   /**
@@ -258,6 +410,8 @@ export class WebRtcPeer extends EventEmitter {
 
   async close(): Promise<void> {
     this.stopStats();
+    for (const fp of this.fingerprinters) fp.stop();
+    this.fingerprinters = [];
     const at = (this as any)._audioTimer;
     const vt = (this as any)._videoTimer;
     if (at) clearInterval(at);

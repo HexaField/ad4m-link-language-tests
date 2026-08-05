@@ -22,7 +22,7 @@
  */
 
 import { Scenario, ScenarioContext, ScenarioResult } from "../scenario.js";
-import { WebRtcPeer } from "../peer.js";
+import { WebRtcPeer, DetectedTone } from "../peer.js";
 import { provisionPeers, disconnectPeers, registerSfuMembers } from "../users.js";
 import { wireRenegotiation, RenegotiationWire } from "../renegotiation.js";
 
@@ -62,6 +62,9 @@ export const t8ConcurrentJoinRace: Scenario = {
       sessions,
     });
 
+    // Build tone list before the peer loop — one frequency per peer.
+    const TONES = sessions.map((_, i) => 440 + i * 40);
+
     const peers: WebRtcPeer[] = [];
     const wires: RenegotiationWire[] = [];
     let passed = false;
@@ -74,8 +77,9 @@ export const t8ConcurrentJoinRace: Scenario = {
       for (let i = 0; i < sessions.length; i++) {
         const session = sessions[i];
         const peer = new WebRtcPeer(session.label, {
-          audioToneHz: 440 + i * 40,
+          audioToneHz: TONES[i],
         });
+        peer.enableAudioFingerprinting(TONES);
         await peer.attachSyntheticStream();
         peers.push(peer);
 
@@ -210,7 +214,31 @@ export const t8ConcurrentJoinRace: Scenario = {
       metrics["stuckPeers"] = stuckPeers;
       metrics["allPeersSettled"] =
         totalRenegotiations >= expectedTotal && zeroPeers <= 1;
-      passed = successfulJoins === PEER_COUNT && totalRenegotiations >= expectedTotal;
+
+      // Phase 5: brief media window to verify track routing via
+      // audio fingerprinting.  Concurrent joins can corrupt track
+      // assignment — the tones reveal that.
+      await sleep(5000);
+
+      const toneResults: Array<{ peer: string; detected: DetectedTone[] }> = [];
+      let routingCorrect = true;
+      for (let i = 0; i < peers.length; i++) {
+        const detected = peers[i].getDetectedTones();
+        toneResults.push({ peer: sessions[i].label, detected });
+        const otherTones = TONES.filter((_, j) => j !== i);
+        const detectedHz = new Set(detected.map((d) => d.dominantHz));
+        const matched = otherTones.filter((hz) => detectedHz.has(hz));
+        if (matched.length === 0 && detected.length > 0) {
+          routingCorrect = false;
+        }
+      }
+      metrics["toneDetection"] = toneResults;
+      metrics["routingCorrect"] = routingCorrect;
+
+      passed =
+        successfulJoins === PEER_COUNT &&
+        totalRenegotiations >= expectedTotal &&
+        routingCorrect;
     } finally {
       for (const w of wires) {
         try {
@@ -260,7 +288,8 @@ export const t8ConcurrentJoinRace: Scenario = {
         `renegotiations=[${(metrics["renegotiationsPerPeer"] as number[] ?? []).join(",")}] ` +
         `total=${metrics["totalRenegotiations"]} (expected>=${metrics["expectedTotal"]}) ` +
         `zeroPeers=${(metrics["stuckPeers"] as any[] ?? []).length} ` +
-        `allSettled=${metrics["allPeersSettled"]}`,
+        `allSettled=${metrics["allPeersSettled"]} ` +
+        `routingCorrect=${metrics["routingCorrect"]}`,
     };
   },
 };

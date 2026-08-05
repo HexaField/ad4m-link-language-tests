@@ -17,7 +17,7 @@
  */
 
 import { Scenario, ScenarioContext, ScenarioResult } from "../scenario.js";
-import { WebRtcPeer, PeerStats } from "../peer.js";
+import { WebRtcPeer, PeerStats, DetectedTone } from "../peer.js";
 import { provisionPeers, disconnectPeers, registerSfuMembers } from "../users.js";
 import { wireRenegotiation, RenegotiationWire } from "../renegotiation.js";
 
@@ -53,6 +53,9 @@ export const t1Sfu5Peer: Scenario = {
       sessions,
     });
 
+    // Build tone list before the peer loop — one frequency per peer.
+    const TONES = sessions.map((_, i) => 440 + i * 40);
+
     const peers: WebRtcPeer[] = [];
     const wires: RenegotiationWire[] = [];
     let passed = false;
@@ -60,8 +63,9 @@ export const t1Sfu5Peer: Scenario = {
       for (let i = 0; i < sessions.length; i++) {
         const session = sessions[i];
         const peer = new WebRtcPeer(session.label, {
-          audioToneHz: 440 + i * 40,
+          audioToneHz: TONES[i],
         });
+        peer.enableAudioFingerprinting(TONES);
         await peer.attachSyntheticStream();
         peers.push(peer);
 
@@ -131,7 +135,26 @@ export const t1Sfu5Peer: Scenario = {
       metrics["allPeersReceivedMedia"] = allReceived;
       const participantsMatch = (room?.participantCount ?? -1) === peers.length;
       metrics["participantsMatch"] = participantsMatch;
-      passed = allReceived && participantsMatch;
+
+      // Frequency-based routing verification.
+      const toneResults: Array<{ peer: string; detected: DetectedTone[] }> = [];
+      let routingCorrect = true;
+      for (let i = 0; i < peers.length; i++) {
+        const detected = peers[i].getDetectedTones();
+        toneResults.push({ peer: sessions[i].label, detected });
+        // Each peer should detect tones from OTHER peers, not itself.
+        const otherTones = TONES.filter((_, j) => j !== i);
+        const detectedHz = new Set(detected.map((d) => d.dominantHz));
+        const matched = otherTones.filter((hz) => detectedHz.has(hz));
+        if (matched.length === 0 && detected.length > 0) {
+          // Detected audio but NONE matched expected tones — wrong routing.
+          routingCorrect = false;
+        }
+      }
+      metrics["toneDetection"] = toneResults;
+      metrics["routingCorrect"] = routingCorrect;
+
+      passed = allReceived && participantsMatch && routingCorrect;
     } finally {
       for (const w of wires) {
         try {
@@ -180,7 +203,8 @@ export const t1Sfu5Peer: Scenario = {
         `T1: SFU 5 peers — ` +
         `mediaFlowing=${metrics["allPeersReceivedMedia"]} ` +
         `uploadMean=${metrics["uploadMean"]}B downloadMean=${metrics["downloadMean"]}B ` +
-        `serverParticipants=${metrics["serverReportedParticipants"]}`,
+        `serverParticipants=${metrics["serverReportedParticipants"]} ` +
+        `routingCorrect=${metrics["routingCorrect"]}`,
     };
   },
 };
