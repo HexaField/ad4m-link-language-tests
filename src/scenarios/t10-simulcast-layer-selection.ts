@@ -21,7 +21,7 @@
 
 import { Scenario, ScenarioContext, ScenarioResult } from "../scenario.js";
 import { WebRtcPeer, PeerStats } from "../peer.js";
-import { provisionPeers, disconnectPeers } from "../users.js";
+import { provisionPeers, disconnectPeers, registerSfuMembers } from "../users.js";
 import { wireRenegotiation, RenegotiationWire } from "../renegotiation.js";
 
 const ROOM_NAME = "t10-simulcast";
@@ -51,6 +51,12 @@ export const t10SimulcastLayerSelection: Scenario = {
       port,
       count: 2,
       labelPrefix: "t10-peer",
+    });
+
+    await registerSfuMembers({
+      admin,
+      neighbourhoodUrl: NEIGHBOURHOOD,
+      sessions,
     });
 
     const peers: WebRtcPeer[] = [];

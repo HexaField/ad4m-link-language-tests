@@ -25,6 +25,7 @@ import {
   provisionClusterPeers,
   disconnectClusterPeers,
   ClusterPeerSession,
+  registerClusterSfuMembers,
 } from "../users.js";
 import { wireRenegotiation, RenegotiationWire } from "../renegotiation.js";
 
@@ -86,6 +87,12 @@ export const t7SfuCascadeMedia: Scenario = {
         })),
         count: 2,
         labelPrefix: "t7-peer",
+      });
+
+      await registerClusterSfuMembers({
+        nodes: cluster.nodes.map((n) => ({ admin: n.client })),
+        neighbourhoodUrl: NEIGHBOURHOOD,
+        sessions,
       });
 
       // Join peer i on node i — forced assignment, no redirect following.

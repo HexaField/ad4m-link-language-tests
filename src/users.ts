@@ -118,6 +118,27 @@ export async function disconnectPeers(sessions: PeerSession[]): Promise<void> {
   }
 }
 
+/**
+ * Register provisioned peers as SFU room members via `sfu.addMember`.
+ *
+ * Must be called with the admin client AFTER provisioning peers and
+ * BEFORE the peers attempt `sfu.callJoin`.  Each peer's DID is added
+ * to the SFU's in-memory whitelist for `neighbourhoodUrl` so the
+ * membership check passes.
+ */
+export async function registerSfuMembers(opts: {
+  admin: InstrumentedClient;
+  neighbourhoodUrl: string;
+  sessions: PeerSession[];
+}): Promise<void> {
+  for (const s of opts.sessions) {
+    await opts.admin.call("sfu.addMember", {
+      neighbourhoodUrl: opts.neighbourhoodUrl,
+      did: s.did,
+    });
+  }
+}
+
 export interface ClusterNodeAuth {
   /** Cluster identifier (matches the DID/label of the SFU node). */
   nodeId: string;
@@ -208,6 +229,31 @@ export async function disconnectClusterPeers(sessions: ClusterPeerSession[]): Pr
       } catch {
         /* best-effort */
       }
+    }
+  }
+}
+
+/**
+ * Register cluster-provisioned peers as SFU room members on every node.
+ *
+ * Each peer's DID is registered via `sfu.addMember` on EVERY admin
+ * client so the peer can join any node in the cluster.
+ */
+export async function registerClusterSfuMembers(opts: {
+  nodes: { admin: InstrumentedClient }[];
+  neighbourhoodUrl: string;
+  sessions: ClusterPeerSession[];
+}): Promise<void> {
+  for (const session of opts.sessions) {
+    // Extract the DID from any node's auth entry (same user = same DID).
+    const firstEntry = session.byNode.values().next().value;
+    if (!firstEntry) continue;
+    const did = firstEntry.did;
+    for (const node of opts.nodes) {
+      await node.admin.call("sfu.addMember", {
+        neighbourhoodUrl: opts.neighbourhoodUrl,
+        did,
+      });
     }
   }
 }

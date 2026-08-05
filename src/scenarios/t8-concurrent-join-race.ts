@@ -23,7 +23,7 @@
 
 import { Scenario, ScenarioContext, ScenarioResult } from "../scenario.js";
 import { WebRtcPeer } from "../peer.js";
-import { provisionPeers, disconnectPeers } from "../users.js";
+import { provisionPeers, disconnectPeers, registerSfuMembers } from "../users.js";
 import { wireRenegotiation, RenegotiationWire } from "../renegotiation.js";
 
 const ROOM_NAME = "t8-concurrent-join";
@@ -54,6 +54,12 @@ export const t8ConcurrentJoinRace: Scenario = {
       port,
       count: PEER_COUNT,
       labelPrefix: "t8-peer",
+    });
+
+    await registerSfuMembers({
+      admin,
+      neighbourhoodUrl: NEIGHBOURHOOD,
+      sessions,
     });
 
     const peers: WebRtcPeer[] = [];
@@ -155,13 +161,24 @@ export const t8ConcurrentJoinRace: Scenario = {
       }
       metrics["serverParticipantCount"] = serverCount;
 
-      // Phase 4: wait for renegotiations to settle.  Each peer should
-      // receive renegotiation offers for every other peer (>= N-1).
-      const expectedRenegotiations = Math.max(successfulJoins - 1, 0);
+      // Phase 4: wait for renegotiations to settle.
+      //
+      // With concurrent joins, the expected total renegotiation count
+      // follows N*(N-1)/2 (triangular): each peer that joins triggers
+      // server-pushed offers to peers already in the room, but the
+      // joining peer itself learns about existing peers from its
+      // callJoin SDP answer — no renegotiation needed for those.
+      //
+      // Per-peer counts depend on join order: the first peer processed
+      // gets N-1 renegotiations, the last gets 0.  The correct check
+      // for a concurrent burst: total >= N*(N-1)/2 and every peer
+      // received at least 1 renegotiation (except possibly the very
+      // last joiner, who already knows about everyone from its answer).
+      const expectedTotal = (successfulJoins * (successfulJoins - 1)) / 2;
       const settleStart = Date.now();
       while (Date.now() - settleStart < SETTLE_TIMEOUT_MS) {
-        const counts = wires.map((w) => w.count());
-        if (counts.every((c) => c >= expectedRenegotiations)) break;
+        const total = wires.reduce((sum, w) => sum + w.count(), 0);
+        if (total >= expectedTotal) break;
         await sleep(500);
       }
       const settleElapsed = Date.now() - settleStart;
@@ -172,20 +189,26 @@ export const t8ConcurrentJoinRace: Scenario = {
       });
 
       const renegotiationCounts = wires.map((w) => w.count());
-      metrics["renegotiationsPerPeer"] = renegotiationCounts;
-      metrics["totalRenegotiations"] = renegotiationCounts.reduce(
+      const totalRenegotiations = renegotiationCounts.reduce(
         (a, b) => a + b,
         0,
       );
-      metrics["expectedPerPeer"] = expectedRenegotiations;
+      metrics["renegotiationsPerPeer"] = renegotiationCounts;
+      metrics["totalRenegotiations"] = totalRenegotiations;
+      metrics["expectedTotal"] = expectedTotal;
 
-      // Identify stuck peers: any peer with fewer renegotiations than
-      // expected.
+      // A peer counts as "stuck" if it received 0 renegotiations AND
+      // was not the last joiner (the last joiner legitimately gets 0
+      // because no one joins after it).  In a concurrent burst the
+      // exact "last" joiner is indeterminate, so we allow exactly one
+      // peer with count 0.
+      const zeroPeers = renegotiationCounts.filter((c) => c === 0).length;
       const stuckPeers = renegotiationCounts
         .map((c, i) => ({ peer: i, count: c }))
-        .filter((p) => p.count < expectedRenegotiations);
+        .filter((p) => p.count === 0);
       metrics["stuckPeers"] = stuckPeers;
-      metrics["allPeersSettled"] = stuckPeers.length === 0;
+      metrics["allPeersSettled"] =
+        totalRenegotiations >= expectedTotal && zeroPeers <= 1;
     } finally {
       for (const w of wires) {
         try {
@@ -231,9 +254,9 @@ export const t8ConcurrentJoinRace: Scenario = {
       samples,
       summary:
         `T8: concurrent join — joined=${metrics["successfulJoins"]}/${PEER_COUNT} ` +
-        `renegotiations=[${(metrics["renegotiationsPerPeer"] as number[]).join(",")}] ` +
-        `(expected>=${metrics["expectedPerPeer"]}/peer) ` +
-        `stuck=${(metrics["stuckPeers"] as any[]).length} ` +
+        `renegotiations=[${(metrics["renegotiationsPerPeer"] as number[] ?? []).join(",")}] ` +
+        `total=${metrics["totalRenegotiations"]} (expected>=${metrics["expectedTotal"]}) ` +
+        `zeroPeers=${(metrics["stuckPeers"] as any[] ?? []).length} ` +
         `allSettled=${metrics["allPeersSettled"]}`,
     };
   },

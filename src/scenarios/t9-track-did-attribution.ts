@@ -23,7 +23,7 @@
 
 import { Scenario, ScenarioContext, ScenarioResult } from "../scenario.js";
 import { WebRtcPeer } from "../peer.js";
-import { provisionPeers, disconnectPeers } from "../users.js";
+import { provisionPeers, disconnectPeers, registerSfuMembers } from "../users.js";
 import { wireRenegotiation, RenegotiationWire } from "../renegotiation.js";
 
 const ROOM_NAME = "t9-track-attribution";
@@ -66,6 +66,13 @@ export const t9TrackDidAttribution: Scenario = {
       count: PEER_COUNT,
       labelPrefix: "t9-peer",
     });
+
+    await registerSfuMembers({
+      admin,
+      neighbourhoodUrl: NEIGHBOURHOOD,
+      sessions,
+    });
+
     const knownDids = sessions.map((s) => s.did);
     metrics["knownDids"] = knownDids;
 

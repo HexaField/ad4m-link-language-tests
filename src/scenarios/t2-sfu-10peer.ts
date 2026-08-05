@@ -13,7 +13,7 @@
 
 import { Scenario, ScenarioContext, ScenarioResult } from "../scenario.js";
 import { WebRtcPeer, PeerStats } from "../peer.js";
-import { provisionPeers, disconnectPeers } from "../users.js";
+import { provisionPeers, disconnectPeers, registerSfuMembers } from "../users.js";
 import { wireRenegotiation, RenegotiationWire } from "../renegotiation.js";
 
 const ROOM_NAME = "t2-sfu-10peer";
@@ -39,6 +39,12 @@ export const t2Sfu10Peer: Scenario = {
       port: ctx.port,
       count: PEER_COUNT,
       labelPrefix: "t2-peer",
+    });
+
+    await registerSfuMembers({
+      admin: client,
+      neighbourhoodUrl,
+      sessions,
     });
 
     const peers: WebRtcPeer[] = [];

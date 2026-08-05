@@ -20,7 +20,7 @@
 
 import { Scenario, ScenarioContext, ScenarioResult } from "../scenario.js";
 import { WebRtcPeer } from "../peer.js";
-import { provisionPeers, disconnectPeers, PeerSession } from "../users.js";
+import { provisionPeers, disconnectPeers, PeerSession, registerSfuMembers } from "../users.js";
 import { wireRenegotiation, RenegotiationWire } from "../renegotiation.js";
 
 const ROOM_NAME = "f8-stuck-renegotiation";
@@ -53,6 +53,13 @@ export const f8StuckRenegotiationRecovery: Scenario = {
       count: 3,
       labelPrefix: "f8-peer",
     });
+
+    await registerSfuMembers({
+      admin,
+      neighbourhoodUrl: NEIGHBOURHOOD,
+      sessions,
+    });
+
     const [sessionA, sessionB, sessionC] = sessions;
 
     const peers: WebRtcPeer[] = [];

@@ -23,7 +23,7 @@
 import { Scenario, ScenarioContext, ScenarioResult } from "../scenario.js";
 import { WebRtcPeer } from "../peer.js";
 import { InstrumentedClient } from "../client.js";
-import { provisionPeers, PeerSession } from "../users.js";
+import { provisionPeers, PeerSession, registerSfuMembers } from "../users.js";
 import { wireRenegotiation, RenegotiationWire } from "../renegotiation.js";
 
 const ROOM_NAME = "f5-renegotiation-flood";
@@ -158,6 +158,11 @@ async function joinOne(
     port,
     count: 1,
     labelPrefix: `f5-peer-${idx}`,
+  });
+  await registerSfuMembers({
+    admin,
+    neighbourhoodUrl: NEIGHBOURHOOD,
+    sessions: [session],
   });
   const peer = new WebRtcPeer(session.label, { audioToneHz: 440 + (idx % 20) * 10 });
   await peer.attachSyntheticStream();

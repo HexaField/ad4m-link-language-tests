@@ -24,6 +24,7 @@ import {
   provisionClusterPeers,
   disconnectClusterPeers,
   ClusterPeerSession,
+  registerClusterSfuMembers,
 } from "../users.js";
 import { wireRenegotiation, RenegotiationWire } from "../renegotiation.js";
 
@@ -87,6 +88,12 @@ export const f9CascadeNodeCrashCleanup: Scenario = {
         })),
         count: 4,
         labelPrefix: "f9-peer",
+      });
+
+      await registerClusterSfuMembers({
+        nodes: cluster.nodes.map((n) => ({ admin: n.client })),
+        neighbourhoodUrl: NEIGHBOURHOOD,
+        sessions,
       });
 
       // Join peers: 0-1 on node A, 2-3 on node B.
