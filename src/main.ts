@@ -17,10 +17,21 @@ import {
   s9NeighbourhoodMemoryLeak,
   s10SubscriptionFanout, s12PersistenceColdQuery, s13ReadWriteMix, s14MultiPerspectiveLoad,
   s15LeakAttribution,
-  t1Sfu5Peer, t2Sfu10Peer, t5TopologyTable, t6PipeHandshake,
+  // WebRTC mesh baselines
+  w1Mesh2Peer, w1mMeshMultiMachine, w2Mesh4Peer, w3MeshRtt, w4MeshBandwidthScaling,
+  w5TurnFallback,
+  // SFU topology
+  t1Sfu5Peer, t2Sfu10Peer, t3SfuCascade2Node, t4SfuCascade3Node,
+  t5TopologyTable, t6PipeHandshake,
   t7SfuCascadeMedia, t8ConcurrentJoinRace, t9TrackDidAttribution, t10SimulcastLayerSelection,
+  // Mid-call topology transitions
+  m1MeshToSfu, m2SfuToMesh, m3CascadeFailover, m4SfuOfflineFallback,
+  // Faults
+  f1MeshPacketLoss, f2SfuPacketLoss, f3OneWayNat, f4NetworkPartition,
   f5RenegotiationFlood, f6NonMemberJoin, f7BadCapability,
   f8StuckRenegotiationRecovery, f9CascadeNodeCrashCleanup,
+  // SFU scale
+  s1Sfu20Peer, s2SfuCascade4Node, s3MaxParticipantsEnforced,
   s4SfuMemoryChurn,
 } from "./scenarios/index.js";
 import { consoleReport, jsonReport, comparisonReport } from "./reporters.js";
@@ -29,6 +40,7 @@ import { config, validateAdamRepo } from "./config.js";
 const RESULTS_DIR = config.resultsDir;
 
 const ALL_SCENARIOS: Scenario[] = [
+  // Core executor scenarios
   s1ColdStart, s2LinkThroughput, s2bMillionLinks, s3PerspectiveScaling, s4LanguageInstallStorm,
   s5QueryScaling, s6ApiConcurrency, s7MemoryStability, s8SubjectClassQueries,
   m1NeighbourhoodSync, m2MultiExecutorScale, m3LinkLanguageComparison,
@@ -38,10 +50,21 @@ const ALL_SCENARIOS: Scenario[] = [
   s9NeighbourhoodMemoryLeak,
   s10SubscriptionFanout, s12PersistenceColdQuery, s13ReadWriteMix, s14MultiPerspectiveLoad,
   s15LeakAttribution,
-  t1Sfu5Peer, t2Sfu10Peer, t5TopologyTable, t6PipeHandshake,
+  // WebRTC mesh baselines
+  w1Mesh2Peer, w1mMeshMultiMachine, w2Mesh4Peer, w3MeshRtt, w4MeshBandwidthScaling,
+  w5TurnFallback,
+  // SFU topology
+  t1Sfu5Peer, t2Sfu10Peer, t3SfuCascade2Node, t4SfuCascade3Node,
+  t5TopologyTable, t6PipeHandshake,
   t7SfuCascadeMedia, t8ConcurrentJoinRace, t9TrackDidAttribution, t10SimulcastLayerSelection,
+  // Mid-call topology transitions
+  m1MeshToSfu, m2SfuToMesh, m3CascadeFailover, m4SfuOfflineFallback,
+  // Faults
+  f1MeshPacketLoss, f2SfuPacketLoss, f3OneWayNat, f4NetworkPartition,
   f5RenegotiationFlood, f6NonMemberJoin, f7BadCapability,
   f8StuckRenegotiationRecovery, f9CascadeNodeCrashCleanup,
+  // SFU scale
+  s1Sfu20Peer, s2SfuCascade4Node, s3MaxParticipantsEnforced,
   s4SfuMemoryChurn,
 ];
 

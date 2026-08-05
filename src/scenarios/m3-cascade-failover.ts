@@ -31,7 +31,7 @@ interface TrackedPeer {
 }
 
 export const m3CascadeFailover: Scenario = {
-  id: "m3",
+  id: "m3-sfu",
   name: "Cascade node failure mid-call",
   description: "Kill node A mid-call; verify peers reconnect to node B",
 

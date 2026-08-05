@@ -26,7 +26,7 @@ const NEIGHBOURHOOD = `windtunnel://s1`;
 const PEER_COUNT = 20;
 
 export const s1Sfu20Peer: Scenario = {
-  id: "s1",
+  id: "s1-sfu",
   name: "SFU 1-node × 20 peers (scale)",
   description: "20-peer single SFU — bandwidth + loss distribution at scale",
 

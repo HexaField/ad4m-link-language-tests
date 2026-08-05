@@ -27,7 +27,7 @@ const PEER_COUNT = 40;
 const MAX_PER_NODE = 10;
 
 export const s2SfuCascade4Node: Scenario = {
-  id: "s2",
+  id: "s2-sfu",
   name: "Cascaded 4-node × 40 peers",
   description: "Four SFU nodes, 40 peers; cascade decision under load",
 

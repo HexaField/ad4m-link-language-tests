@@ -30,7 +30,7 @@ const MAX_PER_NODE = 3;
 const TOTAL_PEERS = 7;
 
 export const s3MaxParticipantsEnforced: Scenario = {
-  id: "s3",
+  id: "s3-sfu",
   name: "max_participants_per_node enforcement",
   description: "2-node cluster, cap=3 each, 7 peers — last peer must overflow cleanly",
 

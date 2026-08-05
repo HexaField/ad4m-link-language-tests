@@ -29,7 +29,7 @@ const ROOM_NAME = "m1-mesh-to-sfu";
 const MAX_MESH = 4;
 
 export const m1MeshToSfu: Scenario = {
-  id: "m1",
+  id: "m1-sfu",
   name: "Mesh → SFU promotion",
   description: "4 mesh hosts; 5th joins; verify transition to SFU + final per-host upload is O(1)",
 

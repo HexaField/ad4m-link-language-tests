@@ -23,7 +23,7 @@ const NEIGHBOURHOOD = "windtunnel://m4-offline";
 const NONEXISTENT_ROOM = "m4-room-never-started";
 
 export const m4SfuOfflineFallback: Scenario = {
-  id: "m4",
+  id: "m4-sfu",
   name: "SFU offline → mesh fallback",
   description: "When designated SFU peer is unavailable, verify mesh fallback path still works",
 
@@ -32,6 +32,14 @@ export const m4SfuOfflineFallback: Scenario = {
     const startTime = Date.now();
     const samples: ScenarioResult["samples"] = [];
     const metrics: Record<string, unknown> = {};
+
+    // Register the admin's DID as a neighbourhood member so the call
+    // reaches the room-lookup path (not the membership gate).
+    const agentStatus = await client.call<{ did: string }>("agent.status", {});
+    await client.call("sfu.ensureMembership", {
+      neighbourhoodUrl: NEIGHBOURHOOD,
+      did: agentStatus.did,
+    });
 
     // Step 1: confirm SFU correctly rejects a join to a never-started room.
     let rejectedCleanly = false;

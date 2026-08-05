@@ -28,7 +28,7 @@ const FINAL_MESH_COUNT = 2;
 const PHASE_SEC = 8;
 
 export const m2SfuToMesh: Scenario = {
-  id: "m2",
+  id: "m2-sfu",
   name: "SFU → mesh degradation",
   description: "5 peers on SFU, 3 leave, remaining 2 swap onto mesh transport",
 
