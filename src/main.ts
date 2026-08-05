@@ -18,7 +18,10 @@ import {
   s10SubscriptionFanout, s12PersistenceColdQuery, s13ReadWriteMix, s14MultiPerspectiveLoad,
   s15LeakAttribution,
   t1Sfu5Peer, t2Sfu10Peer, t5TopologyTable, t6PipeHandshake,
+  t7SfuCascadeMedia, t8ConcurrentJoinRace, t9TrackDidAttribution, t10SimulcastLayerSelection,
   f5RenegotiationFlood, f6NonMemberJoin, f7BadCapability,
+  f8StuckRenegotiationRecovery, f9CascadeNodeCrashCleanup,
+  s4SfuMemoryChurn,
 } from "./scenarios/index.js";
 import { consoleReport, jsonReport, comparisonReport } from "./reporters.js";
 import { config, validateAdamRepo } from "./config.js";
@@ -36,7 +39,10 @@ const ALL_SCENARIOS: Scenario[] = [
   s10SubscriptionFanout, s12PersistenceColdQuery, s13ReadWriteMix, s14MultiPerspectiveLoad,
   s15LeakAttribution,
   t1Sfu5Peer, t2Sfu10Peer, t5TopologyTable, t6PipeHandshake,
+  t7SfuCascadeMedia, t8ConcurrentJoinRace, t9TrackDidAttribution, t10SimulcastLayerSelection,
   f5RenegotiationFlood, f6NonMemberJoin, f7BadCapability,
+  f8StuckRenegotiationRecovery, f9CascadeNodeCrashCleanup,
+  s4SfuMemoryChurn,
 ];
 
 function parseArgs() {
