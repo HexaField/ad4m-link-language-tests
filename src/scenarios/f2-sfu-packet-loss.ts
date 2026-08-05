@@ -16,7 +16,7 @@
 import { Scenario, ScenarioContext, ScenarioResult } from "../scenario.js";
 import { WebRtcPeer } from "../peer.js";
 import { clearNet, setNetem, netAvailable } from "../net.js";
-import { provisionPeers, disconnectPeers } from "../users.js";
+import { provisionPeers, disconnectPeers, registerSfuMembers } from "../users.js";
 import { wireRenegotiation, RenegotiationWire } from "../renegotiation.js";
 
 const ROOM_NAME = "f2-sfu-packet-loss";
@@ -79,6 +79,7 @@ export const f2SfuPacketLoss: Scenario = {
       count: PEER_COUNT,
       labelPrefix: "f2-peer",
     });
+    await registerSfuMembers({ admin: client, neighbourhoodUrl: NEIGHBOURHOOD, sessions });
 
     const peers: WebRtcPeer[] = [];
     const wires: RenegotiationWire[] = [];

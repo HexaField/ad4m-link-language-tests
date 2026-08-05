@@ -22,7 +22,7 @@
 import { Scenario, ScenarioContext, ScenarioResult } from "../scenario.js";
 import { MeshHost, connectAll } from "../mesh.js";
 import { WebRtcPeer } from "../peer.js";
-import { provisionPeers, disconnectPeers } from "../users.js";
+import { provisionPeers, disconnectPeers, registerSfuMembers } from "../users.js";
 import { wireRenegotiation, RenegotiationWire } from "../renegotiation.js";
 
 const ROOM_NAME = "m1-mesh-to-sfu";
@@ -90,6 +90,7 @@ export const m1MeshToSfu: Scenario = {
       count: MAX_MESH + 1,
       labelPrefix: "m1-sfu",
     });
+    await registerSfuMembers({ admin: client, neighbourhoodUrl, sessions });
 
     const transitionStart = Date.now();
     const sfuPeers: WebRtcPeer[] = [];

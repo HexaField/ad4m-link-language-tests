@@ -18,7 +18,7 @@
 
 import { Scenario, ScenarioContext, ScenarioResult } from "../scenario.js";
 import { WebRtcPeer, PeerStats } from "../peer.js";
-import { provisionPeers, disconnectPeers } from "../users.js";
+import { provisionPeers, disconnectPeers, registerSfuMembers } from "../users.js";
 import { wireRenegotiation, RenegotiationWire } from "../renegotiation.js";
 
 const ROOM_NAME = "s1-sfu-20peer";
@@ -63,6 +63,7 @@ export const s1Sfu20Peer: Scenario = {
       count: PEER_COUNT,
       labelPrefix: "s1-peer",
     });
+    await registerSfuMembers({ admin: client, neighbourhoodUrl: NEIGHBOURHOOD, sessions });
 
     const peers: WebRtcPeer[] = [];
     const wires: RenegotiationWire[] = [];

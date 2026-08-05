@@ -119,12 +119,12 @@ export async function disconnectPeers(sessions: PeerSession[]): Promise<void> {
 }
 
 /**
- * Register provisioned peers as SFU room members via `sfu.addMember`.
+ * Register provisioned peers as neighbourhood members via
+ * `sfu.ensureMembership`.
  *
- * Must be called with the admin client AFTER provisioning peers and
- * BEFORE the peers attempt `sfu.callJoin`.  Each peer's DID is added
- * to the SFU's in-memory whitelist for `neighbourhoodUrl` so the
- * membership check passes.
+ * Must run AFTER provisioning peers and BEFORE `sfu.callJoin`.  Each
+ * peer's DID gets written into the perspective_handle owners list for
+ * `neighbourhoodUrl` — the same data store that `callJoin` queries.
  */
 export async function registerSfuMembers(opts: {
   admin: InstrumentedClient;
@@ -132,7 +132,7 @@ export async function registerSfuMembers(opts: {
   sessions: PeerSession[];
 }): Promise<void> {
   for (const s of opts.sessions) {
-    await opts.admin.call("sfu.addMember", {
+    await opts.admin.call("sfu.ensureMembership", {
       neighbourhoodUrl: opts.neighbourhoodUrl,
       did: s.did,
     });
@@ -234,7 +234,8 @@ export async function disconnectClusterPeers(sessions: ClusterPeerSession[]): Pr
 }
 
 /**
- * Register cluster-provisioned peers as SFU room members on every node.
+ * Register cluster-provisioned peers as neighbourhood members on every
+ * node via `sfu.ensureMembership`.
  *
  * Each node generates its own DID for each user (independent keypairs),
  * so we must register EACH node's DID on EVERY node.  A peer calling
@@ -255,7 +256,7 @@ export async function registerClusterSfuMembers(opts: {
     // Register every DID on every node so the user can join anywhere.
     for (const did of allDids) {
       for (const node of opts.nodes) {
-        await node.admin.call("sfu.addMember", {
+        await node.admin.call("sfu.ensureMembership", {
           neighbourhoodUrl: opts.neighbourhoodUrl,
           did,
         });

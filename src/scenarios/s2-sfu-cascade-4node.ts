@@ -16,6 +16,7 @@ import { startCluster, CascadeNode } from "../cascade.js";
 import {
   provisionClusterPeers,
   disconnectClusterPeers,
+  registerClusterSfuMembers,
   ClusterPeerSession,
 } from "../users.js";
 import { wireRenegotiation, RenegotiationWire } from "../renegotiation.js";
@@ -69,6 +70,11 @@ export const s2SfuCascade4Node: Scenario = {
         })),
         count: PEER_COUNT,
         labelPrefix: "s2-peer",
+      });
+      await registerClusterSfuMembers({
+        nodes: cluster.nodes.map((n) => ({ nodeId: n.did, admin: n.client })),
+        neighbourhoodUrl: NEIGHBOURHOOD,
+        sessions: clusterSessions,
       });
 
       const nodeA = cluster.nodes[0];

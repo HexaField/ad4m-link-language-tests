@@ -15,6 +15,7 @@ import { startCluster, CascadeNode } from "../cascade.js";
 import {
   provisionClusterPeers,
   disconnectClusterPeers,
+  registerClusterSfuMembers,
   ClusterPeerSession,
 } from "../users.js";
 
@@ -69,6 +70,11 @@ export const m3CascadeFailover: Scenario = {
         })),
         count: TOTAL_PEERS,
         labelPrefix: "m3-peer",
+      });
+      await registerClusterSfuMembers({
+        nodes: cluster.nodes.map((n) => ({ nodeId: n.did, admin: n.client })),
+        neighbourhoodUrl: NEIGHBOURHOOD,
+        sessions: clusterSessions,
       });
 
       for (let i = 0; i < TOTAL_PEERS; i++) {

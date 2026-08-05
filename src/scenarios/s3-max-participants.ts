@@ -20,6 +20,7 @@ import { startCluster, CascadeNode } from "../cascade.js";
 import {
   provisionClusterPeers,
   disconnectClusterPeers,
+  registerClusterSfuMembers,
   ClusterPeerSession,
 } from "../users.js";
 
@@ -67,6 +68,11 @@ export const s3MaxParticipantsEnforced: Scenario = {
         })),
         count: TOTAL_PEERS,
         labelPrefix: "s3-peer",
+      });
+      await registerClusterSfuMembers({
+        nodes: cluster.nodes.map((n) => ({ nodeId: n.did, admin: n.client })),
+        neighbourhoodUrl: NEIGHBOURHOOD,
+        sessions: clusterSessions,
       });
       const nodeA = cluster.nodes[0];
       const counts: Record<string, number> = {};

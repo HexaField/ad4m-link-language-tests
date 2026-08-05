@@ -25,6 +25,7 @@ import { startCluster, CascadeNode } from "../cascade.js";
 import {
   provisionClusterPeers,
   disconnectClusterPeers,
+  registerClusterSfuMembers,
   ClusterPeerSession,
 } from "../users.js";
 import { iptablesPartitionAvailable, dropTcpPorts, clearPartition } from "../net.js";
@@ -89,6 +90,11 @@ export const f4NetworkPartition: Scenario = {
         })),
         count: 5,
         labelPrefix: "f4-peer",
+      });
+      await registerClusterSfuMembers({
+        nodes: cluster.nodes.map((n) => ({ nodeId: n.did, admin: n.client })),
+        neighbourhoodUrl: NEIGHBOURHOOD,
+        sessions: clusterSessions,
       });
 
       // 5 peers — first 4 to A, 5th cascades to B.

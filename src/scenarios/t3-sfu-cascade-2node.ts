@@ -28,6 +28,7 @@ import { startCluster, CascadeNode } from "../cascade.js";
 import {
   provisionClusterPeers,
   disconnectClusterPeers,
+  registerClusterSfuMembers,
   ClusterPeerSession,
 } from "../users.js";
 
@@ -84,6 +85,11 @@ export const t3SfuCascade2Node: Scenario = {
         })),
         count: PEER_COUNT,
         labelPrefix: "t3-peer",
+      });
+      await registerClusterSfuMembers({
+        nodes: cluster.nodes.map((n) => ({ nodeId: n.did, admin: n.client })),
+        neighbourhoodUrl: NEIGHBOURHOOD,
+        sessions: clusterSessions,
       });
 
       const redirectCount: { fromA: number; toB: number } = { fromA: 0, toB: 0 };

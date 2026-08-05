@@ -18,7 +18,7 @@
 import { Scenario, ScenarioContext, ScenarioResult } from "../scenario.js";
 import { MeshHost, connectAll } from "../mesh.js";
 import { WebRtcPeer } from "../peer.js";
-import { provisionPeers, disconnectPeers } from "../users.js";
+import { provisionPeers, disconnectPeers, registerSfuMembers } from "../users.js";
 import { wireRenegotiation, RenegotiationWire } from "../renegotiation.js";
 
 const ROOM_NAME = "m2-sfu-to-mesh";
@@ -66,6 +66,7 @@ export const m2SfuToMesh: Scenario = {
       count: SFU_PEER_COUNT,
       labelPrefix: "m2-sfu",
     });
+    await registerSfuMembers({ admin: client, neighbourhoodUrl: NEIGHBOURHOOD, sessions });
 
     const sfuPeers: WebRtcPeer[] = [];
     const wires: RenegotiationWire[] = [];

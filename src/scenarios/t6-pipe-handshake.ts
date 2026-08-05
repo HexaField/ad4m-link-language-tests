@@ -24,7 +24,7 @@
 import { Scenario, ScenarioContext, ScenarioResult } from "../scenario.js";
 import { WebRtcPeer } from "../peer.js";
 import { startCluster } from "../cascade.js";
-import { provisionClusterPeers, disconnectClusterPeers } from "../users.js";
+import { provisionClusterPeers, disconnectClusterPeers, registerClusterSfuMembers } from "../users.js";
 import { wireRenegotiation, RenegotiationWire } from "../renegotiation.js";
 
 const ROOM_NAME = "t6-pipe-handshake";
@@ -85,6 +85,11 @@ export const t6PipeHandshake: Scenario = {
         })),
         count: 2,
         labelPrefix: "t6-peer",
+      });
+      await registerClusterSfuMembers({
+        nodes: cluster.nodes.map((n) => ({ nodeId: n.id, admin: n.client })),
+        neighbourhoodUrl: NEIGHBOURHOOD,
+        sessions,
       });
 
       const peers: WebRtcPeer[] = [];
