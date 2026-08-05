@@ -236,24 +236,30 @@ export async function disconnectClusterPeers(sessions: ClusterPeerSession[]): Pr
 /**
  * Register cluster-provisioned peers as SFU room members on every node.
  *
- * Each peer's DID is registered via `sfu.addMember` on EVERY admin
- * client so the peer can join any node in the cluster.
+ * Each node generates its own DID for each user (independent keypairs),
+ * so we must register EACH node's DID on EVERY node.  A peer calling
+ * `callJoin` on node B presents node B's JWT, which carries node B's
+ * DID — if we only registered node A's DID, node B would reject.
  */
 export async function registerClusterSfuMembers(opts: {
-  nodes: { admin: InstrumentedClient }[];
+  nodes: { nodeId: string; admin: InstrumentedClient }[];
   neighbourhoodUrl: string;
   sessions: ClusterPeerSession[];
 }): Promise<void> {
   for (const session of opts.sessions) {
-    // Extract the DID from any node's auth entry (same user = same DID).
-    const firstEntry = session.byNode.values().next().value;
-    if (!firstEntry) continue;
-    const did = firstEntry.did;
-    for (const node of opts.nodes) {
-      await node.admin.call("sfu.addMember", {
-        neighbourhoodUrl: opts.neighbourhoodUrl,
-        did,
-      });
+    // Collect ALL DIDs this user has across the cluster.
+    const allDids = new Set<string>();
+    for (const [, entry] of session.byNode) {
+      allDids.add(entry.did);
+    }
+    // Register every DID on every node so the user can join anywhere.
+    for (const did of allDids) {
+      for (const node of opts.nodes) {
+        await node.admin.call("sfu.addMember", {
+          neighbourhoodUrl: opts.neighbourhoodUrl,
+          did,
+        });
+      }
     }
   }
 }

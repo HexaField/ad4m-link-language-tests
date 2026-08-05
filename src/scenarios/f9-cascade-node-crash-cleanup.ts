@@ -91,7 +91,7 @@ export const f9CascadeNodeCrashCleanup: Scenario = {
       });
 
       await registerClusterSfuMembers({
-        nodes: cluster.nodes.map((n) => ({ admin: n.client })),
+        nodes: cluster.nodes.map((n) => ({ nodeId: n.id, admin: n.client })),
         neighbourhoodUrl: NEIGHBOURHOOD,
         sessions,
       });
