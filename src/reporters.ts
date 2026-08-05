@@ -38,7 +38,7 @@ export function jsonReport(results: ScenarioResult[], outputDir: string): void {
   mkdirSync(outputDir, { recursive: true });
 
   for (const r of results) {
-    const filename = `${r.scenario}.json`;
+    const filename = `${r.scenario.replace(/[^a-z0-9._-]/gi, "-")}.json`;
     const filepath = join(outputDir, filename);
     writeFileSync(filepath, JSON.stringify(r, null, 2));
     console.log(`[reporter] Wrote ${filepath}`);

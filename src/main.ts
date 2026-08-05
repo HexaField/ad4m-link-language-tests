@@ -160,7 +160,7 @@ async function runScenariosForBranch(
       } catch (err: any) {
         console.error(`[runner] ${scenario.id} CRASHED: ${err.message}`);
         results.push({
-          scenario: `${scenario.id}-${scenario.name.toLowerCase().replace(/\s+/g, "-")}`,
+          scenario: `${scenario.id}-${scenario.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/-+$/, "")}`,
           branch,
           startTime: Date.now(),
           endTime: Date.now(),
@@ -175,7 +175,7 @@ async function runScenariosForBranch(
     } catch (err: any) {
       console.error(`[runner] Failed to start executor for ${scenario.id}: ${err.message}`);
       results.push({
-        scenario: `${scenario.id}-${scenario.name.toLowerCase().replace(/\s+/g, "-")}`,
+        scenario: `${scenario.id}-${scenario.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/-+$/, "")}`,
         branch,
         startTime: Date.now(),
         endTime: Date.now(),
