@@ -246,9 +246,10 @@ export const t15SimulcastCascade: Scenario = {
       metrics["peerB_receivedVideo"] = bBytesReceived > 0;
 
       // Exercise quality preference on peer B's node.  In cascade
-      // setups, the preference must propagate to the sender's node —
-      // this may not yet work.  Report as a metric, not a pass gate.
+      // setups, the preference must propagate to the sender's node
+      // via gossip so the pipe forwards the correct simulcast layer.
       let prefsAccepted = true;
+      const prefResults: string[] = [];
       for (const pref of ["low", "high", "auto"]) {
         try {
           await csB.byNode.get(landedNode.did)!.client.call(
@@ -256,14 +257,47 @@ export const t15SimulcastCascade: Scenario = {
             {
               neighbourhoodUrl: NEIGHBOURHOOD,
               roomName: ROOM_NAME,
-              quality: pref,
+              preference: pref,
             },
           );
-        } catch {
+          prefResults.push(`${pref}:ok`);
+        } catch (err) {
           prefsAccepted = false;
+          prefResults.push(`${pref}:${err instanceof Error ? err.message : String(err)}`);
         }
       }
       metrics["qualityPrefsAccepted"] = prefsAccepted;
+      metrics["qualityPrefResults"] = prefResults;
+
+      // Verify cascade propagation: set "low" on Node 1, then query
+      // Node 0's quality_preferences to confirm the pipe peer received
+      // it.  This closes the architectural gap where preference stayed
+      // local to the subscriber's node.
+      let prefPropagated = false;
+      try {
+        // Set a definitive preference so we know what to look for.
+        await csB.byNode.get(landedNode.did)!.client.call(
+          "sfu.callSetQualityPreference",
+          {
+            neighbourhoodUrl: NEIGHBOURHOOD,
+            roomName: ROOM_NAME,
+            preference: "low",
+          },
+        );
+        // Gossip propagation — wait briefly for the TCP message to land.
+        await sleep(1_000);
+        // Query Node 0 (sender's node) for quality preferences.
+        const senderPrefs = await nodeA.client.call<
+          Array<{ participantId: string; preference: string }>
+        >("sfu.qualityPreferences", {});
+        metrics["senderQualityPrefs"] = senderPrefs;
+        // The pipe peer on Node 0 should have preference "low".
+        prefPropagated = senderPrefs.some((p) => p.preference === "low");
+      } catch (err) {
+        metrics["prefPropagationError"] =
+          err instanceof Error ? err.message : String(err);
+      }
+      metrics["qualityPrefPropagated"] = prefPropagated;
 
       // Tone detection — peer B should hear 440 Hz from peer A.
       const tones = peerB.getDetectedTones();
@@ -275,11 +309,15 @@ export const t15SimulcastCascade: Scenario = {
       // 2. Sender confirmed active (simulcast layers or substantial bytes)
       // 3. Receiver got video data across the pipe
       // 4. Audio routing works cross-node (tone detection)
+      // 5. Quality preference API accepted on cascade receiver node
+      // 6. Quality preference propagated to sender node via cascade gossip
       passed =
         pipeEstablished &&
         simulcastConfirmed &&
         bBytesReceived > 0 &&
-        heardA;
+        heardA &&
+        prefsAccepted &&
+        prefPropagated;
     } finally {
       if (cluster) {
         await cluster.shutdown();
@@ -304,6 +342,7 @@ export const t15SimulcastCascade: Scenario = {
         `aSent=${metrics["peerA_bytesSent"]}B ` +
         `bRecv=${metrics["peerB_bytesReceived"]}B ` +
         `prefs=${metrics["qualityPrefsAccepted"]} ` +
+        `propagated=${metrics["qualityPrefPropagated"]} ` +
         `tone=${metrics["peerB_heard440"]}`,
     };
   },
