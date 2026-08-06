@@ -19,12 +19,11 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 IMG="${A2M_IMAGE:-a2wt-openclaw-node}"
 BASE_IMG="${A2_EXEC_IMAGE:-ad4m-test:latest}"
 OC=a2m-openclaw
-# Managed mode needs container egress: `openclaw plugins install` fetches the
-# plugin's npm deps, and managed-mode's executor starts Holochain (bootstrap).
-# The container stays HOST-isolated regardless (no host mounts, cap-drop, limits,
-# non-root). Zero-egress needs two plugin changes (bundle deps -> devDeps; a
-# run-holochain=false option) tracked as findings on coasys/ad4m.
-NET="${A2M_NETWORK:-bridge}"
+# Managed mode runs fully zero-egress: the plugin installs offline (deps bundled
+# into dist) and managed mode starts the executor with --run-holochain false, so
+# there is no npm fetch and no Holochain bootstrap. The container is host-isolated
+# too (no host mounts, cap-drop, limits, non-root).
+NET="${A2M_NETWORK:-none}"
 KEEP="${KEEP:-}"
 
 # Resolve the plugin source (must have the dist build script — coasys/ad4m#880).
@@ -58,7 +57,7 @@ rm -f "$PLUGIN_TGZ"
 echo "[a2m] install plugin + configure managed mode"
 docker exec "$OC" openclaw plugins install /tmp/plugin.tgz >/dev/null 2>&1
 docker exec "$OC" sh -c 'cat >/tmp/mc.json5 <<JSON
-{ plugins: { entries: { ad4m: { config: { mode: "managed", ad4mBinaryPath: "/usr/local/bin/ad4m-executor" } } } } }
+{ plugins: { entries: { ad4m: { config: { mode: "managed", ad4mBinaryPath: "/usr/local/bin/ad4m-executor", runHolochain: false } } } } }
 JSON
 openclaw config patch --file /tmp/mc.json5 >/dev/null 2>&1'
 
