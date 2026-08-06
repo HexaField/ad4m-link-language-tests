@@ -165,6 +165,16 @@ class AudioFingerprinter {
   }
 }
 
+/** Per-layer encoding parameters for simulcast. */
+export interface SimulcastEncoding {
+  /** RTP stream ID — e.g. "f", "h", "q". */
+  rid: string;
+  /** Maximum bitrate in bps for this layer. */
+  maxBitrate?: number;
+  /** Scale factor (1 = full resolution, 2 = half, 4 = quarter). */
+  scaleResolutionDownBy?: number;
+}
+
 export interface PeerOptions {
   /** Audio tone in Hz so receivers can identify the speaker. */
   audioToneHz?: number;
@@ -183,6 +193,24 @@ export interface PeerOptions {
    * scenarios to surface the actual incoming bitrate.
    */
   recvSlots?: number;
+  /**
+   * Simulcast encodings for the video track.  When provided, the peer
+   * uses `addTransceiver(track, { sendEncodings })` instead of
+   * `addTrack`, and auto-bumps the video source to 1280x720 (unless
+   * explicit videoWidth/videoHeight override).
+   *
+   * Order: lowest quality first (index 0 = smallest layer).
+   * Example: [
+   *   { rid: "q", maxBitrate: 150_000, scaleResolutionDownBy: 4 },
+   *   { rid: "h", maxBitrate: 600_000, scaleResolutionDownBy: 2 },
+   *   { rid: "f", maxBitrate: 2_500_000 },
+   * ]
+   */
+  simulcastEncodings?: SimulcastEncoding[];
+  /** Video source width — defaults to 320 (or 1280 with simulcast). */
+  videoWidth?: number;
+  /** Video source height — defaults to 240 (or 720 with simulcast). */
+  videoHeight?: number;
   /** `wrtc` module override (for tests). */
   wrtcImpl?: any;
 }
@@ -197,12 +225,19 @@ export class WebRtcPeer extends EventEmitter {
   private fingerprinters: AudioFingerprinter[] = [];
   private fingerprintCandidates: number[] | null = null;
   private wrtcImpl: any;
+  private audioToneHz: number;
+  /** RIDs from simulcast encodings — drives SDP munging in acceptAnswer. */
+  private simulcastRids: string[] = [];
 
   constructor(id: string, opts: PeerOptions = {}) {
     super();
     this.id = id;
     const impl = opts.wrtcImpl ?? wrtc;
     this.wrtcImpl = impl;
+    this.audioToneHz = opts.audioToneHz ?? 440;
+    if (opts.simulcastEncodings) {
+      this.simulcastRids = opts.simulcastEncodings.map((e) => e.rid);
+    }
     if (!impl) {
       throw new Error(
         "WebRtcPeer: @roamhq/wrtc not available. Run `npm install --include=optional @roamhq/wrtc` " +
@@ -282,7 +317,7 @@ export class WebRtcPeer extends EventEmitter {
     // 32-bit PCM tone — 48 kHz, 10ms frames.
     const audioSource = new RTCAudioSource();
     const audioTrack = audioSource.createTrack();
-    const audioToneHz = opts.audioToneHz ?? 440;
+    const audioToneHz = opts.audioToneHz ?? this.audioToneHz;
     const sampleRate = 48000;
     const samplesPerFrame = sampleRate / 100; // 10ms
     let t = 0;
@@ -301,22 +336,34 @@ export class WebRtcPeer extends EventEmitter {
       });
     }, 10);
 
-    // Counter video — 320x240 I420.
+    // Counter video — I420.  Defaults to 320x240; bumps to 1280x720
+    // when simulcast encodings are configured (the encoder needs room
+    // to scale down for lower layers).
     const videoSource = new RTCVideoSource();
     const videoTrack = videoSource.createTrack();
     const fps = opts.videoFps ?? 15;
-    const width = 320;
-    const height = 240;
+    const hasSimulcast = (opts.simulcastEncodings ?? this.simulcastRids).length > 0;
+    const width = opts.videoWidth ?? (hasSimulcast ? 1280 : 320);
+    const height = opts.videoHeight ?? (hasSimulcast ? 720 : 240);
     const frameInterval = Math.round(1000 / fps);
     let frameCounter = 0;
     const yLen = width * height;
     const uvLen = (width / 2) * (height / 2);
     const videoTimer = setInterval(() => {
       const data = new Uint8Array(yLen + 2 * uvLen);
-      // Brightness ramps with the counter so the receiver can detect
-      // frame skips (the average pixel value should be monotonically
-      // changing modulo 256).
-      data.fill(frameCounter & 0xff, 0, yLen);
+      // Generate spatially-varied luma so the encoder produces
+      // meaningful bitrate (uniform flat frames compress to near-zero,
+      // starving the bandwidth estimator and preventing simulcast
+      // layer ramp-up).  The pattern shifts each frame so every frame
+      // differs — the receiver can still spot skips via the counter
+      // embedded in the top-left corner region.
+      const v = (frameCounter * 3) & 0xff;
+      for (let y = 0; y < height; y++) {
+        const rowBase = y * width;
+        for (let x = 0; x < width; x++) {
+          data[rowBase + x] = ((x + y + v) * 7) & 0xff;
+        }
+      }
       data.fill(128, yLen, yLen + uvLen); // U
       data.fill(128, yLen + uvLen, yLen + 2 * uvLen); // V
       videoSource.onFrame({ width, height, data });
@@ -330,7 +377,30 @@ export class WebRtcPeer extends EventEmitter {
     stream.addTrack(videoTrack);
     this.localStream = stream;
     this.pc.addTrack(audioTrack, stream);
-    this.pc.addTrack(videoTrack, stream);
+
+    // For simulcast: use addTransceiver with sendEncodings so libwebrtc
+    // creates multiple encoder instances.  Without this, addTrack
+    // creates a single-layer transceiver that ignores encodings set
+    // later via setParameters.
+    const simEnc = opts.simulcastEncodings;
+    if (simEnc && simEnc.length > 0) {
+      (this.pc as any).addTransceiver(videoTrack, {
+        direction: "sendonly",
+        sendEncodings: simEnc.map((e) => ({
+          rid: e.rid,
+          ...(e.maxBitrate != null ? { maxBitrate: e.maxBitrate } : {}),
+          ...(e.scaleResolutionDownBy != null
+            ? { scaleResolutionDownBy: e.scaleResolutionDownBy }
+            : {}),
+        })),
+      });
+      // Store rids if not already set from constructor.
+      if (this.simulcastRids.length === 0) {
+        this.simulcastRids = simEnc.map((e) => e.rid);
+      }
+    } else {
+      this.pc.addTrack(videoTrack, stream);
+    }
 
     // Pre-allocate recv-only transceivers if requested.  Each slot is
     // one audio + one video m-line in the initial offer; the SFU's
@@ -367,9 +437,22 @@ export class WebRtcPeer extends EventEmitter {
     return answer;
   }
 
-  /** Apply an SDP answer (caller side, after createOffer + signalling). */
+  /**
+   * Apply an SDP answer (caller side, after createOffer + signalling).
+   *
+   * When the peer has simulcast encodings configured, this method
+   * auto-applies SDP munging to inject missing `a=rid`/`a=simulcast`
+   * lines.  libwebrtc M106's `createAnswer()` strips these lines,
+   * causing the sender to disable all layers except one.  Real SFUs
+   * (str0m, mediasoup) produce proper simulcast answers — the munging
+   * short-circuits when those lines already exist.
+   */
   async acceptAnswer(answer: RTCSessionDescriptionInit): Promise<void> {
-    await this.pc.setRemoteDescription(answer);
+    let sdp = answer.sdp ?? "";
+    if (this.simulcastRids.length > 0) {
+      sdp = mungeAnswerForSimulcast(sdp, this.simulcastRids);
+    }
+    await this.pc.setRemoteDescription({ type: answer.type, sdp });
   }
 
   /** Begin 1Hz `getStats()` sampling.  Emits `'stats'` events. */
@@ -485,6 +568,62 @@ function aggregateStats(reports: Map<string, any>): PeerStats {
     stats.selectedRemoteCandidateType = rc?.candidateType ?? null;
   }
   return stats;
+}
+
+// ---------------------------------------------------------------------------
+// SDP munging — inject simulcast acknowledgment into answers that lack it.
+// ---------------------------------------------------------------------------
+
+/**
+ * Inject `a=rid` and `a=simulcast:recv` lines into an SDP answer that
+ * omits them.
+ *
+ * **Why this exists:** `@roamhq/wrtc` wraps libwebrtc M106.  When a
+ * second `RTCPeerConnection` answers a simulcast offer via
+ * `createAnswer()`, the answer SDP contains zero `a=rid:` and zero
+ * `a=simulcast:` lines.  The offerer interprets this as "the remote
+ * side does not want simulcast" and disables all layers except one.
+ *
+ * In SFU deployments, the SFU generates its own answer with proper
+ * simulcast lines — so this function short-circuits (returns the SDP
+ * unchanged) when `a=simulcast:` already appears.
+ *
+ * @param sdp  The raw SDP answer string.
+ * @param rids The RTP stream IDs to acknowledge (e.g. ["q","h","f"]).
+ * @returns    The (possibly munged) SDP string.
+ */
+export function mungeAnswerForSimulcast(sdp: string, rids: string[]): string {
+  if (sdp.includes("a=simulcast:")) return sdp;
+  if (rids.length === 0) return sdp;
+
+  const lines = sdp.split("\r\n");
+  const result: string[] = [];
+  let inVideo = false;
+  let inserted = false;
+
+  for (const line of lines) {
+    if (line.startsWith("m=video")) inVideo = true;
+    else if (line.startsWith("m=") && !line.startsWith("m=video")) {
+      inVideo = false;
+    }
+
+    result.push(line);
+
+    // Insert right after a=recvonly or a=sendrecv in the video section.
+    if (
+      inVideo &&
+      !inserted &&
+      (line === "a=recvonly" || line === "a=sendrecv")
+    ) {
+      for (const rid of rids) {
+        result.push(`a=rid:${rid} recv`);
+      }
+      result.push(`a=simulcast:recv ${rids.join(";")}`);
+      inserted = true;
+    }
+  }
+
+  return result.join("\r\n");
 }
 
 /** Manual SDP + ICE exchange between two peers — the mesh signalling helper.
