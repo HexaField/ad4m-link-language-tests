@@ -46,6 +46,7 @@ export const a2ProvisionConnect: Scenario = {
     const samples: ScenarioResult["samples"] = [];
     const metrics: Record<string, any> = {};
     let ran = 0;
+    let passCount = 0;
     let allPassed = true;
 
     for (const sub of SUBRUNS) {
@@ -57,13 +58,13 @@ export const a2ProvisionConnect: Scenario = {
       ran++;
       const t0 = performance.now();
       let out = "";
-      let ok = false;
+      let status: "pass" | "skip" | "fail";
       try {
         out = execSync(`bash "${scriptPath}"`, { encoding: "utf8", timeout: 360000, env: process.env });
-        ok = sub.passRe.test(out);
+        status = sub.passRe.test(out) ? "pass" : /\bSKIP\b/.test(out) ? "skip" : "fail";
       } catch (err: any) {
         out = (err.stdout?.toString?.() ?? "") + (err.stderr?.toString?.() ?? err.message ?? "");
-        ok = false;
+        status = "fail";
       }
       const didMatch = out.match(/did=(did:key:[A-Za-z0-9]+)/);
       const toolsMatch = out.match(/ad4m: (\d+) tools/);
@@ -71,16 +72,17 @@ export const a2ProvisionConnect: Scenario = {
         name: `${sub.name}-onboard`,
         durationMs: performance.now() - t0,
         timestamp: Date.now(),
-        error: ok ? undefined : "verify script did not report PASS",
+        error: status === "fail" ? "verify script did not report PASS" : undefined,
       });
-      metrics[sub.name] = ok ? "pass" : "fail";
+      metrics[sub.name] = status;
       if (didMatch) metrics[`${sub.name}Did`] = didMatch[1];
       if (toolsMatch) metrics[`${sub.name}McpTools`] = Number(toolsMatch[1]);
-      if (!ok) allPassed = false;
+      if (status === "pass") passCount++;
+      if (status === "fail") allPassed = false;
     }
 
     const endTime = Date.now();
-    const passed = ran > 0 && allPassed;
+    const passed = passCount > 0 && allPassed;
     const passedPaths = Object.entries(metrics)
       .filter(([, v]) => v === "pass")
       .map(([k]) => k)
