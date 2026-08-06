@@ -20,6 +20,7 @@ services:
       # all subsequent agents auto-admitted. In production the admin
       # controls the ACL explicitly.
       - AUTO_ADMIT=true
+      - SKIP_LINK_VERIFICATION=true
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:3457/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
