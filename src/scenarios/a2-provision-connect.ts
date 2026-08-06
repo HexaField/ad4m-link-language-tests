@@ -30,7 +30,11 @@ interface SubRun {
 }
 
 const SUBRUNS: SubRun[] = [
-  { name: "external", script: "interop/agents/verify-a2-openclaw.sh", passRe: /\[a2\] PASS/ },
+  // external via OpenClaw's native MCP client (portable, harness-agnostic route)
+  { name: "external-native", script: "interop/agents/verify-a2-openclaw.sh", passRe: /\[a2\] PASS/ },
+  // external via the real @coasys/openclaw-ad4m plugin (ad4m-setup); regression-guards the plugin
+  { name: "external-plugin", script: "interop/agents/verify-a2-openclaw-external-plugin.sh", passRe: /\[a2xp\] PASS/ },
+  // managed (download+install a fresh node) via the plugin's managed mode
   { name: "managed", script: "interop/agents/verify-a2-openclaw-managed.sh", passRe: /\[a2m\] PASS/ },
 ];
 
@@ -38,7 +42,7 @@ export const a2ProvisionConnect: Scenario = {
   id: "a2",
   name: "Provision & Connect (OpenClaw)",
   description:
-    "OpenClaw assistant onboards to ADAM (external: join a pre-existing multi-user node; managed: download+install a fresh node), then creates and verifies an agent. Self-managed, hardened Docker pod.",
+    "OpenClaw assistant onboards to ADAM across three routes — external via native MCP, external via the @coasys/openclaw-ad4m plugin, and managed (download+install) via the plugin — creating and verifying a distinct agent each time. Self-managed, hardened Docker pod.",
   managesOwnEnvironment: true,
 
   async run(ctx: ScenarioContext): Promise<ScenarioResult> {
