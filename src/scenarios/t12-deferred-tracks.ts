@@ -188,7 +188,11 @@ export const t12DeferredTracks: Scenario = {
       for (let i = 0; i < peers.length; i++) {
         const detected = peers[i].getDetectedTones();
         const otherTones = TONES.filter((_, j) => j !== i);
-        const detectedHz = new Set(detected.map((d) => d.dominantHz));
+        // Filter out 0 Hz (silence/self-track) from detection — Goertzel
+        // returns 0 for tracks with no energy at any candidate frequency.
+        const detectedHz = new Set(
+          detected.map((d) => d.dominantHz).filter((hz) => hz !== 0),
+        );
         const matchedHz = otherTones.filter((hz) => detectedHz.has(hz));
         const missingHz = otherTones.filter((hz) => !detectedHz.has(hz));
 

@@ -44,7 +44,13 @@ import { m3CascadeFailover } from "./scenarios/m3-cascade-failover.js";
 import { f4NetworkPartition } from "./scenarios/f4-network-partition.js";
 import { s2SfuCascade4Node } from "./scenarios/s2-sfu-cascade-4node.js";
 import { s3MaxParticipantsEnforced } from "./scenarios/s3-max-participants.js";
+import { t7SfuCascadeMedia } from "./scenarios/t7-sfu-cascade-media.js";
+import { t8ConcurrentJoinRace } from "./scenarios/t8-concurrent-join-race.js";
+import { t9TrackDidAttribution } from "./scenarios/t9-track-did-attribution.js";
+import { t10SimulcastLayerSelection } from "./scenarios/t10-simulcast-layer-selection.js";
+import { t11CascadeRebalance } from "./scenarios/t11-cascade-rebalance.js";
 import { t12DeferredTracks } from "./scenarios/t12-deferred-tracks.js";
+import { t15SimulcastCascade } from "./scenarios/t15-simulcast-cascade.js";
 import { t13PeerDepartureMedia } from "./scenarios/t13-peer-departure-media.js";
 import { t14MediaRoutingCorrectness } from "./scenarios/t14-media-routing-correctness.js";
 import { InstrumentedClient } from "./client.js";
@@ -96,6 +102,12 @@ function pick(ids: string[]): Scenario[] {
     t4: t4SfuCascade3Node,
     t5: t5TopologyTable,
     t6: t6PipeHandshake,
+    t7: t7SfuCascadeMedia,
+    t8: t8ConcurrentJoinRace,
+    t9: t9TrackDidAttribution,
+    t10: t10SimulcastLayerSelection,
+    t11: t11CascadeRebalance,
+    t15: t15SimulcastCascade,
     m1: m1MeshToSfu,
     m2: m2SfuToMesh,
     m3: m3CascadeFailover,
@@ -161,7 +173,8 @@ async function main() {
   // logic check; the cascade/packet-loss stubs short-circuit before
   // touching the client.
   const liveExecutorScenarioIds = new Set([
-    "t1", "t2", "t3", "t4", "t12", "t13", "t14",
+    // t3, t4, t7, t11 self-spawn via startCluster() — not listed here.
+    "t1", "t2", "t8", "t9", "t10", "t12", "t13", "t14",
     "m1", "m2", "m3", "m4",
     "f1", "f2", "f3", "f4", "f5", "f6", "f7",
     "s1", "s2", "s3",
@@ -210,7 +223,9 @@ async function main() {
       // Pass a no-op stand-in when there's no executor connected.
       client: client ?? ({ call: () => Promise.reject(new Error("no executor")) } as any),
       branch: args.label,
-      port: 12000,
+      port: args.executorUrl
+        ? Number(new URL(args.executorUrl).port || 12000)
+        : Number(process.env.AD4M_PORT || 12000),
       adminToken: args.executorToken ?? "",
       adamRepoPath: "",
       tmpDirBase: "/tmp",

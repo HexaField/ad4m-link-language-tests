@@ -57,8 +57,8 @@ export const t3SfuCascade2Node: Scenario = {
       cluster = await startCluster({
         nodeCount: 2,
         maxParticipantsPerNode: MAX_PER_NODE,
-        // Don't collide with the main wind-tunnel executor on 12000.
-        wsBasePort: 13000,
+        // Safe range: 16000+ avoids ad4m-prod (13000), agent-harness (14000), probe (15000).
+        wsBasePort: 16000,
       });
       const [nodeA, nodeB] = cluster.nodes;
       metrics["nodeA"] = nodeA.did;
@@ -74,6 +74,11 @@ export const t3SfuCascade2Node: Scenario = {
         neighbourhoodUrl: NEIGHBOURHOOD,
         roomName: ROOM_NAME,
       });
+
+      // startRoom now triggers a gossip announce so peers learn about
+      // each other's capacity.  Brief settle for the TCP gossip round
+      // trip to complete (both nodes need each other's announce).
+      await new Promise<void>((r) => setTimeout(r, 2_000));
 
       // Each peer needs a user on every cluster node so that cascade
       // redirects don't fail with "Caller DID not resolved" — the user

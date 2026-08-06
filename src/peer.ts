@@ -59,6 +59,14 @@ export interface PeerStats {
   selectedRemoteCandidateType: string | null;
   // For SFU scenarios
   simulcastLayerInUse: "f" | "h" | "q" | null;
+  /** Per-rid outbound-rtp stats when simulcast encoding produces multiple layers. */
+  simulcastLayers: Array<{
+    rid: string;
+    bytesSent: number;
+    packetsSent: number;
+    framesEncoded: number;
+    active: boolean;
+  }>;
 }
 
 // ---------------------------------------------------------------------------
@@ -158,6 +166,13 @@ class AudioFingerprinter {
 
   get samplesCollected(): number {
     return this.totalSamples;
+  }
+
+  /** Clear accumulated data so the fingerprinter re-analyses fresh audio. */
+  reset(): void {
+    this._result = null;
+    this.buffer = [];
+    this.totalSamples = 0;
   }
 
   stop(): void {
@@ -286,6 +301,15 @@ export class WebRtcPeer extends EventEmitter {
    * in its PCM stream.  Returns only tracks that have collected enough
    * samples for analysis (~0.5s of audio).
    */
+  /**
+   * Clear accumulated fingerprint data on all active fingerprinters.
+   * Use between test phases (e.g. pre/post peer departure) so the next
+   * `getDetectedTones()` reflects only fresh audio.
+   */
+  resetFingerprinting(): void {
+    for (const fp of this.fingerprinters) fp.reset();
+  }
+
   getDetectedTones(): DetectedTone[] {
     const tones: DetectedTone[] = [];
     for (const fp of this.fingerprinters) {
@@ -523,6 +547,7 @@ function aggregateStats(reports: Map<string, any>): PeerStats {
     selectedLocalCandidateType: null,
     selectedRemoteCandidateType: null,
     simulcastLayerInUse: null,
+    simulcastLayers: [],
   };
 
   // Resolve candidate types by chasing localCandidateId / remoteCandidateId
@@ -538,6 +563,13 @@ function aggregateStats(reports: Map<string, any>): PeerStats {
       if (report.rid) {
         stats.simulcastLayerInUse =
           (report.rid as "f" | "h" | "q") ?? stats.simulcastLayerInUse;
+        stats.simulcastLayers.push({
+          rid: report.rid as string,
+          bytesSent: report.bytesSent ?? 0,
+          packetsSent: report.packetsSent ?? 0,
+          framesEncoded: report.framesEncoded ?? 0,
+          active: (report.bytesSent ?? 0) > 0,
+        });
       }
     } else if (report.type === "inbound-rtp") {
       stats.bytesReceived += report.bytesReceived ?? 0;

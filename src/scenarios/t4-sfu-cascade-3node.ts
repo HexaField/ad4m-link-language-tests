@@ -47,7 +47,7 @@ export const t4SfuCascade3Node: Scenario = {
       cluster = await startCluster({
         nodeCount: 3,
         maxParticipantsPerNode: MAX_PER_NODE,
-        wsBasePort: 13100,
+        wsBasePort: 16100,
       });
 
       const didToNode = new Map<string, CascadeNode>();

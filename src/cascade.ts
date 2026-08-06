@@ -136,6 +136,7 @@ export async function startCluster(opts: CascadeClusterOptions): Promise<Cascade
       "--hc-use-bootstrap", "false",
       "--hc-use-proxy", "false",
       "--enable-multi-user", "true",
+      "--connect-holochain", "false",
       "--sfu-local-did", planned.did,
       "--sfu-max-participants-per-node", String(opts.maxParticipantsPerNode),
       "--sfu-cascade-listen", `127.0.0.1:${planned.gossipPort}`,

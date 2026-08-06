@@ -166,13 +166,20 @@ export const t13PeerDepartureMedia: Scenario = {
 
       // Phase 4: post-departure — wait for stale track cleanup, then
       // let remaining peers accumulate fresh Goertzel data.
-      // Reset fingerprinting on remaining peers so post-departure tones
-      // get a clean slate (existing fingerprinters already ran; new
-      // tracks from renegotiation after departure will spawn fresh ones).
+      //
+      // The SFU needs time to process departure + send renegotiation
+      // offers removing B's tracks. The jitter buffer also drains
+      // residual frames for ~1-2s. Wait for that to settle, THEN
+      // reset fingerprinting so Goertzel only accumulates clean
+      // post-departure audio.
+      const remainingIndices = [0, 2, 3]; // A, C, D
+      await sleep(3_000); // let SFU process departure + drain jitter buffers
+      for (const idx of remainingIndices) {
+        peers[idx].resetFingerprinting();
+      }
       await sleep(POST_DEPARTURE_MS);
 
       // Snapshot post-departure bytesReceived.
-      const remainingIndices = [0, 2, 3]; // A, C, D
       const postDepartureBytes: Record<string, number> = {};
       for (const idx of remainingIndices) {
         postDepartureBytes[sessions[idx].label] =

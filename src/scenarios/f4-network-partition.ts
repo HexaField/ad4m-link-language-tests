@@ -70,7 +70,7 @@ export const f4NetworkPartition: Scenario = {
       cluster = await startCluster({
         nodeCount: 2,
         maxParticipantsPerNode: MAX_PER_NODE,
-        wsBasePort: 13500,
+        wsBasePort: 16600,
       });
 
       const didToNode = new Map<string, CascadeNode>();

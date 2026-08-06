@@ -31,8 +31,8 @@ import { wireRenegotiation, RenegotiationWire } from "../renegotiation.js";
 
 const ROOM_NAME = "t7-cascade-media";
 const NEIGHBOURHOOD = `windtunnel://t7`;
-const WS_BASE = 13100;
-const GOSSIP_BASE = 25100;
+const WS_BASE = 16200;
+const GOSSIP_BASE = 26200;
 const MAX_PER_NODE = 4;
 const MEDIA_DURATION_MS = 10_000;
 const PIPE_TIMEOUT_MS = 15_000;

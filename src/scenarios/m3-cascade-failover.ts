@@ -49,7 +49,7 @@ export const m3CascadeFailover: Scenario = {
       cluster = await startCluster({
         nodeCount: 2,
         maxParticipantsPerNode: MAX_PER_NODE,
-        wsBasePort: 13400,
+        wsBasePort: 16500,
       });
 
       const didToNode = new Map<string, CascadeNode>();

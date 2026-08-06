@@ -157,9 +157,12 @@ export const t14MediaRoutingCorrectness: Scenario = {
         // Which expected tones never appeared?
         const missingHz = otherTones.filter((hz) => !detectedSet.has(hz));
         // Which detected tones don't match any expected frequency?
+        // Filter out 0 Hz — Goertzel returns 0 for silent/empty tracks
+        // (self-track or tracks not yet producing audio). Silence does
+        // not constitute misrouting.
         const expectedSet = new Set(otherTones);
         const unexpectedHz = detectedHz.filter(
-          (hz) => !expectedSet.has(hz),
+          (hz) => hz !== 0 && !expectedSet.has(hz),
         );
 
         toneResults.push({
