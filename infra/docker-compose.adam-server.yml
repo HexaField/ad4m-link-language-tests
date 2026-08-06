@@ -1,0 +1,31 @@
+# ADAM Simple Server — self-hostable link language backend
+# Port 3457: HTTP + WebSocket endpoint
+#
+# The server creates its SQLite database and server identity key on first
+# boot inside the named volume. No external dependencies.
+services:
+  adam-link-server:
+    build:
+      context: ../../adam-link-server
+      dockerfile: Dockerfile
+    container_name: ad4m-test-adam-server
+    ports:
+      - "3457:3457"
+    volumes:
+      - adam-server-data:/data
+    environment:
+      - PORT=3457
+      - DATA_DIR=/data
+      # Open ACL for wind tunnel — first agent to auth becomes admin,
+      # all subsequent agents auto-admitted. In production the admin
+      # controls the ACL explicitly.
+      - AUTO_ADMIT=true
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3457/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  adam-server-data:

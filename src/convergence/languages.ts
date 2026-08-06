@@ -451,6 +451,46 @@ export const CONVERGENCE_LANGUAGES: ConvergenceLanguage[] = [
       };
     },
   },
+
+  {
+    // ADAM Simple Server — self-hostable link language server. The SIMPLEST
+    // server-backed link language: one HTTP+WebSocket server (SQLite storage,
+    // DID challenge-response auth, per-room ACL), one link language client.
+    // Communities deploy the server on their own hardware; only authorized
+    // AD4M agents can read/write. Matrix-homeserver sovereignty model at a
+    // fraction of the complexity.
+    //
+    // The server provides the single source of truth — no P2P, no state
+    // resolution algorithm. Diffs apply in server-receipt order; OR-Set
+    // semantics come from the link hash (additions/removals keyed by the
+    // same hash cancel correctly). Revision = SHA-256 of sorted active
+    // link hashes (content hash, not a counter).
+    //
+    // WebSocket push delivers diffs and telepresence signals in real-time;
+    // the HTTP poll path serves as fallback. The language emits every
+    // inbound diff via emitPerspectiveDiff (the critical trap 7/13
+    // languages hit).
+    //
+    // Backend: adam-link-server (Docker, port 3457). No sidecar — the
+    // language talks directly to the server over HTTP + WebSocket.
+    // healthTcp probes the server's HTTP port.
+    id: "adam-server",
+    bundlePath: resolve(
+      WORKSPACE_ROOT,
+      "adam-server-link-language/build/bundle.js"
+    ),
+    possibleTemplateParams: ["SERVER_URL", "ROOM_ID"],
+    backend: {
+      compose: "docker-compose.adam-server.yml",
+      healthTcp: { host: "127.0.0.1", port: 3457 },
+    },
+    makeTemplateData(neighbourhoodId: string): Record<string, string> {
+      return {
+        SERVER_URL: "http://127.0.0.1:3457",
+        ROOM_ID: neighbourhoodId,
+      };
+    },
+  },
 ];
 
 export function getConvergenceLanguage(id: string): ConvergenceLanguage | undefined {
