@@ -4,9 +4,9 @@
 # The server creates its SQLite database and server identity key on first
 # boot inside the named volume. No external dependencies.
 services:
-  adam-link-server:
+  link-server:
     build:
-      context: ../../adam-link-server
+      context: ../../link-server
       dockerfile: Dockerfile
     container_name: ad4m-test-adam-server
     ports:

@@ -471,13 +471,13 @@ export const CONVERGENCE_LANGUAGES: ConvergenceLanguage[] = [
     // inbound diff via emitPerspectiveDiff (the critical trap 7/13
     // languages hit).
     //
-    // Backend: adam-link-server (Docker, port 3457). No sidecar — the
+    // Backend: link-server (Docker, port 3457). No sidecar — the
     // language talks directly to the server over HTTP + WebSocket.
     // healthTcp probes the server's HTTP port.
     id: "adam-server",
     bundlePath: resolve(
       WORKSPACE_ROOT,
-      "adam-server-link-language/build/bundle.js"
+      "server-link-language/build/bundle.js"
     ),
     possibleTemplateParams: ["SERVER_URL", "ROOM_ID"],
     backend: {
