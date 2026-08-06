@@ -39,5 +39,12 @@ export interface Scenario {
   id: string;
   name: string;
   description: string;
+  /**
+   * When true, the runner does NOT boot a native executor or connect a client
+   * for this scenario — the scenario stands up and tears down its own
+   * environment (e.g. a Docker pod). `ctx.client` is undefined in that case.
+   * Used by the agent-harness (A-series) pod scenarios.
+   */
+  managesOwnEnvironment?: boolean;
   run(ctx: ScenarioContext): Promise<ScenarioResult>;
 }
