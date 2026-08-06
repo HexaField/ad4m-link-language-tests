@@ -173,11 +173,12 @@ async function main() {
   // logic check; the cascade/packet-loss stubs short-circuit before
   // touching the client.
   const liveExecutorScenarioIds = new Set([
-    // t3, t4, t7, t11 self-spawn via startCluster() — not listed here.
+    // t3, t4, t7, t11, t15 self-spawn via startCluster() — not listed.
     "t1", "t2", "t8", "t9", "t10", "t12", "t13", "t14",
-    "m1", "m2", "m3", "m4",
+    // Migration/scale scenario IDs use the -sfu suffix (see each .id field).
+    "m1-sfu", "m2-sfu", "m3-sfu", "m4-sfu",
     "f1", "f2", "f3", "f4", "f5", "f6", "f7",
-    "s1", "s2", "s3",
+    "s1-sfu", "s2-sfu", "s3-sfu",
     "w5",
   ]);
   const requiresExecutor = scenarios.some((s) => liveExecutorScenarioIds.has(s.id));
