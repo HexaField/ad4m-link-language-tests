@@ -166,6 +166,11 @@ export const f4NetworkPartition: Scenario = {
         count: 1,
         labelPrefix: "f4-probe",
       });
+      await registerClusterSfuMembers({
+        nodes: cluster.nodes.map((n) => ({ nodeId: n.did, admin: n.client })),
+        neighbourhoodUrl: NEIGHBOURHOOD,
+        sessions: [probeCs],
+      });
       probeSession = probeCs;
       const probe = new WebRtcPeer(probeCs.label, { audioToneHz: 880 });
       await probe.attachSyntheticStream();

@@ -18,8 +18,10 @@ const DEFAULT_IFACE = process.env.WT_NET_IFACE ?? "lo";
 function tcAvailable(): boolean {
   if (process.platform !== "linux") return false;
   try {
-    execSync("which tc", { stdio: "pipe" });
-    execSync("sudo -n true", { stdio: "pipe" });
+    // Probe the actual command directly — /usr/sbin may not appear on
+    // PATH, and sudoers may allow tc specifically without blanket
+    // NOPASSWD (so `sudo -n true` would fail).
+    execSync("sudo -n tc qdisc show dev lo", { stdio: "pipe" });
     return true;
   } catch {
     return false;
@@ -90,8 +92,8 @@ const PARTITION_CHAIN = "WT_PARTITION";
 function iptablesAvailable(): boolean {
   if (process.platform !== "linux") return false;
   try {
-    execSync("which iptables", { stdio: "pipe" });
-    execSync("sudo -n true", { stdio: "pipe" });
+    // Probe directly — /usr/sbin may not appear on PATH.
+    execSync("sudo -n iptables -L -n", { stdio: "pipe" });
     return true;
   } catch {
     return false;
