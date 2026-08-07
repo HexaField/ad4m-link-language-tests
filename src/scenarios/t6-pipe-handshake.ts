@@ -29,8 +29,8 @@ import { wireRenegotiation, RenegotiationWire } from "../renegotiation.js";
 
 const ROOM_NAME = "t6-pipe-handshake";
 const NEIGHBOURHOOD = `windtunnel://t6`;
-const WS_BASE = 13000;
-const GOSSIP_BASE = 25000;
+const WS_BASE = 16200;
+const GOSSIP_BASE = 26200;
 const MAX_PER_NODE = 4;
 
 interface CascadeStatusPipe {

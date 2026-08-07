@@ -173,13 +173,16 @@ async function main() {
   // logic check; the cascade/packet-loss stubs short-circuit before
   // touching the client.
   const liveExecutorScenarioIds = new Set([
-    // t3, t4, t7, t11, t15 self-spawn via startCluster() — not listed.
+    // Self-spawning (startCluster): t3,t4,t6,t7,t11,t15,m3-sfu,f4,f9,s2-sfu,s3-sfu — NOT listed.
     "t1", "t2", "t8", "t9", "t10", "t12", "t13", "t14",
-    // Migration/scale scenario IDs use the -sfu suffix (see each .id field).
-    "m1-sfu", "m2-sfu", "m3-sfu", "m4-sfu",
-    "f1", "f2", "f3", "f4", "f5", "f6", "f7",
-    "s1-sfu", "s2-sfu", "s3-sfu",
-    "w5",
+    // Migration scenarios that need a pre-running executor.
+    "m1-sfu", "m2-sfu", "m4-sfu",
+    // Fault scenarios: f1/f3 are pure WebRTC (no executor); f4 self-spawns.
+    "f2", "f5", "f6", "f7",
+    // Scale: s1-sfu needs pre-running; s2-sfu/s3-sfu self-spawn.
+    "s1-sfu",
+    // W5 is pure peer-to-peer TURN (no executor); f1/f3 are pure mesh/p2p.
+
   ]);
   const requiresExecutor = scenarios.some((s) => liveExecutorScenarioIds.has(s.id));
   let client: InstrumentedClient | null = null;
