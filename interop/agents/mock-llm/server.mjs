@@ -25,6 +25,11 @@ import http from "node:http";
 
 const PORT = Number(process.env.PORT || 8080);
 const LOG = process.env.MOCK_LLM_LOG === "1";
+// Optional content gate: when set, the scripted plan (tool_calls) is served only
+// on turns whose request body contains this substring; every other tool-bearing
+// turn (e.g. a harness's boot/auto-start turn) gets a benign reply and does NOT
+// consume a step. Keeps a scripted tool_call from being eaten by an unrelated turn.
+const TRIGGER = process.env.MOCK_LLM_TRIGGER || "";
 
 let script = [];
 try {
@@ -230,7 +235,10 @@ const server = http.createServer(async (req, res) => {
   }
 
   const body = await readBody(req);
-  if (LOG) console.error(`\n=== ${req.method} ${url} ===\n${body.slice(0, 6000)}`);
+  if (LOG)
+    console.error(
+      `\n=== ${req.method} ${url} === has_mention=${body.includes("mentioned you")} has_presence_reply_tool=${body.includes("presence_reply_ad4m")}\n${body.slice(0, 4000)}`,
+    );
   let payload = {};
   try {
     payload = body ? JSON.parse(body) : {};
@@ -246,7 +254,8 @@ const server = http.createServer(async (req, res) => {
   // make auxiliary model calls around a turn (title generation, structured-output
   // probes, tool-less summaries); those get a benign reply and do NOT consume a
   // step — otherwise a title call would eat the turn's scripted tool_call.
-  const s = hasTools ? nextStep() : { text: structured ? JSON.stringify({ title: "session" }) : "ok" };
+  const triggered = !TRIGGER || body.includes(TRIGGER);
+  const s = hasTools && triggered ? nextStep() : { text: structured ? JSON.stringify({ title: "session" }) : "ok" };
 
   if (url.includes("/chat/completions")) {
     return wantsStream ? openaiStream(res, s) : openaiJson(res, s);
