@@ -47,7 +47,7 @@ const SUBRUNS: SubRun[] = [
 
 export const a2ProvisionConnect: Scenario = {
   id: "a2",
-  name: "Provision & Connect (OpenClaw)",
+  name: "Provision & Connect (multi-harness)",
   description:
     "AI agent harnesses onboard to ADAM and create + verify a distinct agent: OpenClaw (external native MCP, external via the @coasys/openclaw-ad4m plugin, and managed download+install), Hermes (external native MCP), and Sovereign (external Claude-Agent-SDK MCP injection). Self-managed, hardened Docker pod per route.",
   managesOwnEnvironment: true,
@@ -108,7 +108,7 @@ export const a2ProvisionConnect: Scenario = {
       metrics,
       samples,
       summary: passed
-        ? `A2 provision & connect — verified: ${passedPaths} (OpenClaw → ADAM agent)`
+        ? `A2 provision & connect — verified: ${passedPaths} (harness → ADAM agent)`
         : ran === 0
           ? "A2 provision & connect — no sub-run scripts available"
           : "A2 provision & connect — one or more paths failed",
