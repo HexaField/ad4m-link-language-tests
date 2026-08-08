@@ -1,24 +1,28 @@
 #!/usr/bin/env bash
 #
-# A4 (Sovereign) — Waker. A neighbourhood event wakes Sovereign and it acts.
+# A4 (Sovereign) — Waker. A neighbourhood event wakes Sovereign and it acts,
+# then writes its reply back into the same ad4m channel. Full closed loop.
 #
-# A real ad4m subscription (the @coasys/openclaw-ad4m WakerSubscriptionManager +
-# a live perspective SPARQL subscription) detects a new channel message on the
-# node and delivers the wake to Sovereign's REAL presence ingress: POST
-# /api/chat/send to the presence-internal thread with a modality:'ad4m' origin —
-# the exact payload Sovereign's own bootstrap feeds the presence agent when its
-# native waker fires. Sovereign then runs a presence agent turn.
+# Drives Sovereign's OWN in-server native waker (packages/ad4m): the scenario
+# stands it up (ad4m.host + user token + agentName Hex), pins a perspective via
+# POST /api/ad4m/watch/perspectives, then injects a real @mention message on the
+# node (a has_child + message_body link whose body names the agent). The waker's
+# SPARQL mention query detects it, resolves the parent channel, and emits an
+# ad4m.thread.message wake into Sovereign's presence-internal thread. The presence
+# agent then runs a turn and calls presence_reply_ad4m, which posts a child
+# message back into the channel.
 #
-# Sovereign also ships its OWN in-server waker (packages/ad4m); this stands it up
-# (ad4m.host + token + agentName Hex) and confirms it connects + subscribes
-# ("mention subscription active"). But its long-running WS churns in a headless
-# container and re-baselines that subscription, so the wake is driven through the
-# stable external subscription + the real ingress instead (documented finding).
+# Asserts the FULL loop: (1) the native waker woke an act-capable presence turn
+# — proven by the mock recording, per request, that the mention text reached the
+# turn AND the ad4m reply tool was offered; and (2) the reply write-back landed —
+# a fresh channel child whose body carries the reply marker.
 #
-# Asserts (matching the Hermes A4 bar): the real subscription detected the
-# message and Sovereign's presence ingress accepted it (2xx) + a presence agent
-# turn ran. The ad4m reply-write-back (presence_reply_ad4m) is reported as a
-# bonus — presence-internal turns are offered no MCP tools in the headless image.
+# Two real Sovereign bugs this scenario surfaced and now guards against:
+#   * the SDK WS reconnect drops the server-side SPARQL subscription without
+#     re-registering it → the waker carries a querySparql polling safety-net;
+#   * the waker's parent-channel resolver parsed the wrong querySparql result
+#     shape (results.bindings vs the flat array the executor returns), so every
+#     wake carried an empty channelAddress and the reply could never post.
 #
 # Hardened + host-isolated, full teardown. Needs the swwt-sovereign image + a
 # plugins/ad4m checkout (AD4M_PLUGIN_DIR); SKIPs if absent. KEEP=1 leaves the pod.
@@ -86,6 +90,7 @@ echo "[a4sv] DID=$DID perspective=$UUID"
 
 echo "[a4sv] start mock LLM (presence turn replies via presence_reply_ad4m)"
 docker run -d --name "$MOCK" --network "$NET" -e MOCK_LLM_LOG=1 \
+  -e MOCK_LLM_TRIGGER="mentioned you" \
   -e MOCK_LLM_SCRIPT="[{\"tool_calls\":[{\"name\":\"mcp__sovereign__presence_reply_ad4m\",\"arguments\":{\"text\":\"$MARKER acknowledged the mention\"}}]},{\"text\":\"done\"}]" \
   "$MOCK_IMG" >/dev/null
 
@@ -117,7 +122,20 @@ for i in $(seq 1 45); do
   curl -s -o /dev/null -w '%{http_code}' --max-time 3 "http://127.0.0.1:${SV_PORT}/health" 2>/dev/null | grep -q 200 && { echo "[a4sv] Sovereign healthy"; break; }
   sleep 2
 done
-sleep 6 # let the waker connect to the node WS + resolve the agent DID
+# Let the waker connect + the agent DID resolve, AND let boot/auto-start turns
+# settle to idle before we inject — so the presence turn runs alone and the
+# in-server `activeSessionKey` (which presence_reply_ad4m's internal-gate reads)
+# is not stomped by a concurrent boot turn.
+sleep 6
+for i in $(seq 1 20); do
+  st=$(curl -s --max-time 4 "http://127.0.0.1:${SV_PORT}/api/threads" 2>/dev/null | python3 -c 'import sys,json
+try: d=json.load(sys.stdin)
+except: print("busy"); sys.exit()
+ts=d if isinstance(d,list) else (d.get("threads") or [])
+print("busy" if any(str(t.get("agentStatus","")).lower() in ("working","thinking") for t in ts) else "idle")' 2>/dev/null || echo busy)
+  [ "$st" = "idle" ] && break
+  sleep 3
+done
 
 echo "[a4sv] resolve presence-internal thread"
 INT=$(curl -s --max-time 5 "http://127.0.0.1:${SV_PORT}/api/threads/presence" | python3 -c '
@@ -132,46 +150,43 @@ else:
   print(idof(cand[0]) if cand else (idof(items[0]) if items else ""))')
 echo "[a4sv] presence-internal thread: ${INT:-<none>}"
 if [ -z "$INT" ]; then echo "[a4sv] FAIL — no presence-internal thread"; docker logs "$SV" 2>&1 | tail -15 | sed 's/^/    /'; exit 1; fi
-# The native in-server waker connects + subscribes; its long-running WS churns in
-# a headless container (re-baselines the mention subscription), so we drive the
-# wake through a stable external subscription + Sovereign's real presence ingress.
-docker logs "$SV" 2>&1 | grep -qE 'mention subscription active' && echo "[a4sv] native waker connected + subscribed (subscription active)"
 
-echo "[a4sv] real ad4m subscription detects a channel message -> Sovereign presence ingress"
-CALLS0=$(docker logs "$MOCK" 2>&1 | grep -cE 'chat/completions|/messages' || true)
-set +e
-OUT=$(cd "$ROOT" && AD4M_PLUGIN_DIR="$PLUGIN_DIR" \
-  A4_WS="http://127.0.0.1:14443" A4_MCP="http://127.0.0.1:${MCP_PORT}" A4_ADMIN="$JWT" \
-  A4_UUID="$UUID" A4_CHAN="$CHAN" A4_SV="http://127.0.0.1:${SV_PORT}" A4_THREAD="$INT" \
-  timeout 90 npx tsx "$HERE/sovereign/waker-driver.ts" 2>&1)
-RC=$?
-set -e
-echo "$OUT" | grep -E '\[a4sv-drv\]' | sed 's/^/    /'
-if [ $RC -ne 0 ]; then echo "[a4sv] FAIL — waker did not detect + deliver to the presence ingress"; exit 1; fi
+echo "[a4sv] pin the perspective for Sovereign's native waker"
+curl -s --max-time 6 -X POST "http://127.0.0.1:${SV_PORT}/api/ad4m/watch/perspectives" \
+  -H 'Content-Type: application/json' -d "{\"uuid\":\"$UUID\",\"label\":\"a4sv\"}" | sed 's/^/    /'
+for i in $(seq 1 15); do
+  docker logs "$SV" 2>&1 | grep -q "mention subscription active for $UUID" && { echo "[a4sv] native waker subscribed"; break; }
+  sleep 2
+done
 
-echo "[a4sv] wait for the presence turn + ad4m reply"
-WOKE=""; TURN=""; REPLY=""
-for i in $(seq 1 30); do
-  H=$(curl -s --max-time 5 "http://127.0.0.1:${SV_PORT}/api/threads/${INT}/messages" 2>/dev/null || true)
-  if printf '%s' "$H" | grep -q 'presence:inbound'; then WOKE=1; fi
-  CALLS1=$(docker logs "$MOCK" 2>&1 | grep -cE 'chat/completions|/messages' || true)
-  if [ "${CALLS1:-0}" -gt "${CALLS0:-0}" ]; then TURN=1; fi
+CALLS0=$(docker logs "$MOCK" 2>&1 | grep -cE 'chat/completions|/messages' || echo 0)
+echo "[a4sv] inject a mention message ('Hey Hex …') on the node"
+cd "$ROOT" && npx tsx "$HERE/sovereign/waker-ad4m.ts" mention "http://127.0.0.1:${MCP_PORT}" "$JWT" "$UUID" "$CHAN" "$CHAN/msg/1" "Hey Hex, please acknowledge this" | sed 's/^/    /'
+
+echo "[a4sv] wait for native waker -> presence agent turn (act-capable)"
+# Gate = the full loop. WOKE: the mock records, per request, whether the mention
+# text reached the turn AND the ad4m reply tool was offered — an unambiguous,
+# harness-agnostic "woke an act-capable turn" signal. REPLY: the presence agent's
+# presence_reply_ad4m write-back landed as a fresh channel child carrying the
+# marker. Keep polling for the reply after the wake — the write-back is async.
+WOKE=""; REPLY=""
+for i in $(seq 1 45); do
+  if [ -z "$WOKE" ] && docker logs "$MOCK" 2>&1 | grep -q 'has_mention=true has_presence_reply_tool=true'; then WOKE=1; fi
   if [ -n "$WOKE" ]; then
     R=$( (cd "$ROOT" && npx tsx "$HERE/sovereign/waker-ad4m.ts" child-has "http://127.0.0.1:${MCP_PORT}" "$JWT" "$UUID" "$CHAN" "$MARKER" 2>/dev/null || true) | grep '^REPLY=' | cut -d= -f2- || true)
-    if [ "$R" = "found" ]; then REPLY=1; fi
+    [ "$R" = "found" ] && { REPLY=1; break; }
   fi
-  if [ -n "$WOKE" ] && [ -n "$TURN" ] && [ -n "$REPLY" ]; then break; fi
   sleep 3
 done
-echo "[a4sv] woke=${WOKE:-0} turnRan=${TURN:-0} replyLanded=${REPLY:-0}"
-# Gate (matches the Hermes A4 bar): a real ad4m subscription detected the channel
-# message and delivered it to Sovereign's real presence ingress (2xx above), and
-# a presence agent turn ran. The ad4m reply-write-back (presence_reply_ad4m) is a
-# bonus — it needs the sovereign MCP tools wired into presence-internal turns,
-# which the headless test image does not offer (turn requests carry tools:[]).
-if [ -z "$TURN" ]; then
-  echo "[a4sv] FAIL — presence ingress accepted the wake but no presence agent turn ran"
-  docker logs "$SV" 2>&1 | grep -iE 'presence|ad4m|reply|error' | grep -viE 'WebSocket error' | tail -20 | sed 's/^/    /'
+echo "[a4sv] wokeActCapableTurn=${WOKE:-0} replyLanded=${REPLY:-0}"
+if [ -z "$WOKE" ]; then
+  echo "[a4sv] FAIL — Sovereign's native waker did not wake a presence agent turn on the ad4m mention"
+  docker logs "$SV" 2>&1 | grep -iE 'waker|mention|presence' | grep -viE 'WebSocket error' | tail -20 | sed 's/^/    /'
   exit 1
 fi
-echo "[a4sv] PASS — real ad4m subscription woke Sovereign's presence agent via its real ingress (turn ran; inbound=${WOKE:-0}, ad4m reply=${REPLY:-0})"
+if [ -z "$REPLY" ]; then
+  echo "[a4sv] FAIL — presence agent woke but its ad4m reply write-back did not land in the channel"
+  docker logs "$SV" 2>&1 | grep -iE 'waker|mention|presence|reply' | grep -viE 'WebSocket error' | tail -20 | sed 's/^/    /'
+  exit 1
+fi
+echo "[a4sv] PASS — Sovereign's native ad4m waker woke the presence agent on a mention AND its presence_reply_ad4m write-back landed back in the channel (full loop)"
