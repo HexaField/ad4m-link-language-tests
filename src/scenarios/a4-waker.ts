@@ -9,8 +9,9 @@
  *     to OpenClaw's real /hooks/wake endpoint.
  *   - Hermes   — the same real ad4m waker component delivering to Hermes's real
  *     signed /webhooks/wake ingress (gateway), which fires an agent turn.
- *   - Sovereign — Sovereign's OWN native ad4m waker (mention subscription →
- *     presence-internal turn → reply into the channel).
+ *   - Sovereign — a real ad4m subscription delivering the wake to Sovereign's
+ *     real presence ingress (POST /api/chat/send, ad4m origin), which runs a
+ *     presence agent turn.
  *
  * Each asserts detection (1 msg -> 1 wake), debounce coalescing (3 rapid -> 1),
  * liveness, and real-ingress delivery. Pod-managed (`managesOwnEnvironment`):
@@ -42,7 +43,7 @@ export const a4Waker: Scenario = {
   id: "a4",
   name: "Waker (multi-harness)",
   description:
-    "A live AD4M perspective subscription detects new channel messages and wakes the agent through each harness's real wake ingress, which runs a turn: OpenClaw (/hooks/wake), Hermes (signed /webhooks/wake), and Sovereign (native mention waker → presence reply). Single-message wake, debounce coalescing, liveness, real-ingress delivery. Self-managed, hardened Docker pod per route.",
+    "A live AD4M perspective subscription detects new channel messages and wakes the agent through each harness's real wake ingress, which runs a turn: OpenClaw (/hooks/wake), Hermes (signed /webhooks/wake), and Sovereign (presence ingress /api/chat/send). Single-message wake, debounce coalescing, liveness, real-ingress delivery. Self-managed, hardened Docker pod per route.",
   managesOwnEnvironment: true,
 
   async run(ctx: ScenarioContext): Promise<ScenarioResult> {
