@@ -70,7 +70,7 @@ for i in $(seq 1 60); do
 done
 
 echo "[a2h] provision Hermes's own user identity (signup + login)"
-PROV=$(cd "$ROOT" && A2H_ADMIN="$ADMIN" npx tsx "$HERE/hermes/ad4m-user.ts" provision "http://127.0.0.1:${MCP_PORT}" "$EMAIL" "$UPASS")
+PROV=$(cd "$ROOT" && A2H_ADMIN="$ADMIN" npx tsx "$HERE/ad4m-user.ts" provision "http://127.0.0.1:${MCP_PORT}" "$EMAIL" "$UPASS")
 JWT=$(echo "$PROV" | grep '^JWT=' | cut -d= -f2-)
 DID=$(echo "$PROV" | grep '^DID=' | cut -d= -f2-)
 if [ -z "$JWT" ] || [ -z "$DID" ]; then echo "[a2h] FAIL — could not provision a user identity"; echo "$PROV" | sed 's/^/    /'; exit 1; fi
@@ -109,7 +109,7 @@ OUT=$(timeout 220 docker start -a "$OC" 2>&1 || true)
 echo "$OUT" | grep -iE 'created channel|error|ad4m' | tail -6 | sed 's/^/    /'
 
 echo "[a2h] verify the identity + created perspective on the node"
-CHK=$(cd "$ROOT" && A2H_ADMIN="$ADMIN" npx tsx "$HERE/hermes/ad4m-user.ts" check "http://127.0.0.1:${MCP_PORT}" "$JWT" "$PNAME")
+CHK=$(cd "$ROOT" && A2H_ADMIN="$ADMIN" npx tsx "$HERE/ad4m-user.ts" check "http://127.0.0.1:${MCP_PORT}" "$JWT" "$PNAME")
 echo "$CHK" | sed 's/^/    /'
 if ! echo "$CHK" | grep -q 'PERSP=found'; then echo "[a2h] FAIL — Hermes turn did not create the perspective via MCP"; exit 1; fi
 if ! echo "$CHK" | grep -q "DID=$DID"; then echo "[a2h] FAIL — provisioned DID mismatch"; exit 1; fi

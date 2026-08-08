@@ -222,7 +222,7 @@ const server = http.createServer(async (req, res) => {
     res.writeHead(200, { "content-type": "application/json" });
     return res.end(JSON.stringify({ status: "ok", step, scriptLen: script.length }));
   }
-  if (req.method === "GET" && url.startsWith("/v1/models")) {
+  if (req.method === "GET" && url.includes("models")) {
     res.writeHead(200, { "content-type": "application/json" });
     return res.end(
       JSON.stringify({ object: "list", data: [{ id: "mock-model", object: "model", owned_by: "windtunnel" }] }),
@@ -238,7 +238,15 @@ const server = http.createServer(async (req, res) => {
     /* non-JSON body */
   }
   const wantsStream = payload?.stream === true || (req.headers.accept || "").includes("text/event-stream");
-  const s = nextStep();
+  const hasTools = Array.isArray(payload?.tools) && payload.tools.length > 0;
+  const structured =
+    payload?.output_config?.format?.type === "json_schema" || payload?.response_format?.type === "json_schema";
+
+  // Only advance the scripted plan on real, tool-capable agent turns. The SDKs
+  // make auxiliary model calls around a turn (title generation, structured-output
+  // probes, tool-less summaries); those get a benign reply and do NOT consume a
+  // step — otherwise a title call would eat the turn's scripted tool_call.
+  const s = hasTools ? nextStep() : { text: structured ? JSON.stringify({ title: "session" }) : "ok" };
 
   if (url.includes("/chat/completions")) {
     return wantsStream ? openaiStream(res, s) : openaiJson(res, s);
