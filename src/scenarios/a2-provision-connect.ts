@@ -1,16 +1,19 @@
 /**
- * A2 — Provision & Connect (OpenClaw).
+ * A2 — Provision & Connect (multi-harness).
  *
- * A user instructs an OpenClaw assistant to onboard to ADAM and end up with a
- * working, verified agent, down two paths:
- *   - external: join a pre-existing multi-user node (signup + login)
- *   - managed:  download + install a fresh node (agent.generate)
+ * A user instructs an AI agent harness to onboard to ADAM and end up with a
+ * working, verified agent. Covered across harnesses + routes:
+ *   - OpenClaw external, native MCP client (signup + login)
+ *   - OpenClaw external, via the real @coasys/openclaw-ad4m plugin (ad4m-setup)
+ *   - OpenClaw managed (download + install a fresh node, agent.generate)
+ *   - Hermes external, native MCP client (mcp_servers.ad4m, Bearer JWT)
+ *   - Sovereign external, Claude-Agent-SDK ad4m MCP injection
  *
  * This scenario is pod-managed (`managesOwnEnvironment`): it drives the
  * self-contained, hardened, fully-isolated verify scripts under
  * `interop/agents/`, each of which stands up its Docker pod (AD4M node + mock
- * LLM + real OpenClaw), runs the onboarding turn, verifies the created identity,
- * and tears the pod down. Nothing touches the host OS.
+ * LLM + the real harness), runs the onboarding turn, verifies the created
+ * identity, and tears the pod down. Nothing touches the host OS.
  *
  * A sub-path whose script is absent is skipped honestly (recorded, not failed).
  */
@@ -36,13 +39,17 @@ const SUBRUNS: SubRun[] = [
   { name: "external-plugin", script: "interop/agents/verify-a2-openclaw-external-plugin.sh", passRe: /\[a2xp\] PASS/ },
   // managed (download+install a fresh node) via the plugin's managed mode
   { name: "managed", script: "interop/agents/verify-a2-openclaw-managed.sh", passRe: /\[a2m\] PASS/ },
+  // Hermes harness — external, native MCP client (mcp_servers.ad4m, Bearer JWT)
+  { name: "hermes", script: "interop/agents/verify-a2-hermes.sh", passRe: /\[a2h\] PASS/ },
+  // Sovereign harness — external, Claude-Agent-SDK ad4m MCP injection
+  { name: "sovereign", script: "interop/agents/verify-a2-sovereign.sh", passRe: /\[a2sv\] PASS/ },
 ];
 
 export const a2ProvisionConnect: Scenario = {
   id: "a2",
   name: "Provision & Connect (OpenClaw)",
   description:
-    "OpenClaw assistant onboards to ADAM across three routes — external via native MCP, external via the @coasys/openclaw-ad4m plugin, and managed (download+install) via the plugin — creating and verifying a distinct agent each time. Self-managed, hardened Docker pod.",
+    "AI agent harnesses onboard to ADAM and create + verify a distinct agent: OpenClaw (external native MCP, external via the @coasys/openclaw-ad4m plugin, and managed download+install), Hermes (external native MCP), and Sovereign (external Claude-Agent-SDK MCP injection). Self-managed, hardened Docker pod per route.",
   managesOwnEnvironment: true,
 
   async run(ctx: ScenarioContext): Promise<ScenarioResult> {
@@ -70,7 +77,7 @@ export const a2ProvisionConnect: Scenario = {
         out = (err.stdout?.toString?.() ?? "") + (err.stderr?.toString?.() ?? err.message ?? "");
         status = "fail";
       }
-      const didMatch = out.match(/did=(did:key:[A-Za-z0-9]+)/);
+      const didMatch = out.match(/did[=:]\s*(did:key:[A-Za-z0-9]+)/i);
       const toolsMatch = out.match(/ad4m: (\d+) tools/);
       samples.push({
         name: `${sub.name}-onboard`,
