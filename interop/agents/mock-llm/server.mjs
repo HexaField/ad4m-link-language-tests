@@ -30,6 +30,12 @@ const LOG = process.env.MOCK_LLM_LOG === "1";
 // turn (e.g. a harness's boot/auto-start turn) gets a benign reply and does NOT
 // consume a step. Keeps a scripted tool_call from being eaten by an unrelated turn.
 const TRIGGER = process.env.MOCK_LLM_TRIGGER || "";
+// Optional perceive marker: when set, each logged request records has_mark=<bool>
+// (does the request body carry this substring). A5 sets it to a distinctive
+// transcript phrase so a scenario can assert the transcript content reached the
+// act-capable turn — i.e. the agent perceived the transcript. Additive; A4's
+// `has_mention=... has_presence_reply_tool=...` log fields stay intact.
+const MARK = process.env.MOCK_LLM_MARK || "";
 
 let script = [];
 try {
@@ -42,6 +48,10 @@ let step = 0;
 function nextStep() {
   const s = step < script.length ? script[step] : { text: "done" };
   step += 1;
+  if (LOG) {
+    const desc = s.tool_calls ? "tools:" + s.tool_calls.map((t) => t.name).join("+") : "text";
+    console.error(`[mock-llm] advance step ${step - 1} -> ${desc}`);
+  }
   return s;
 }
 
@@ -237,7 +247,7 @@ const server = http.createServer(async (req, res) => {
   const body = await readBody(req);
   if (LOG)
     console.error(
-      `\n=== ${req.method} ${url} === has_mention=${body.includes("mentioned you")} has_presence_reply_tool=${body.includes("presence_reply_ad4m")}\n${body.slice(0, 4000)}`,
+      `\n=== ${req.method} ${url} === has_mention=${body.includes("mentioned you")} has_presence_reply_tool=${body.includes("presence_reply_ad4m")} has_mark=${MARK ? body.includes(MARK) : false}\n${body.slice(0, 4000)}`,
     );
   let payload = {};
   try {
