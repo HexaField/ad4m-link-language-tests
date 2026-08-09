@@ -16,6 +16,7 @@ export { c1Convergence } from "./c1-convergence.js";
 export { a3McpThroughput } from "./a3-mcp-throughput.js";
 export { a2ProvisionConnect } from "./a2-provision-connect.js";
 export { a4Waker } from "./a4-waker.js";
+export { a5AvLoop } from "./a5-av-loop.js";
 export { s9NeighbourhoodMemoryLeak } from "./s9-neighbourhood-memory-leak.js";
 export { s10SubscriptionFanout } from "./s10-subscription-fanout.js";
 export { s12PersistenceColdQuery } from "./s12-persistence-cold-query.js";
