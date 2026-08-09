@@ -268,3 +268,57 @@ For building new Expression Languages, see [`coasys/ad4m-expression-language-tem
 | Time-travel reads to past states | **Git** (`git-state-at` query) |
 | Interoperability with existing developer tooling | **Git** (any Git CLI / GitHub / GitLab / Gitea) |
 | Dual-language alongside Holochain | Any of the ALDK languages (all support it) |
+
+---
+
+## Agent-Harness Capability Matrix (A-series)
+
+How each external AI agent harness drives an ADAM node across the wind-tunnel
+agent-integration surface. Verified on the **mock-LLM lane** (a deterministic mock
+LLM speaking both OpenAI and Anthropic wire formats); the real-model lane is noted
+where it changes a result. ✅ = verified; ◑ = partly verified on the mock lane
+(rest rides the real-model lane); results are honest, not aspirational.
+
+| Capability | OpenClaw | Hermes | Sovereign |
+|---|---|---|---|
+| **Init / connect** (A2) | ✅ | ✅ | ✅ |
+| **MCP action round-trip** (A3) | ✅ | ✅ | ✅ |
+| **Waker — event → agent acts** (A4) | ✅ | ✅ | ✅ |
+| **Wake ingress** | `/hooks/wake` (built-in) | signed webhook (`X-Hub-Signature-256`) | native in-server waker → presence thread |
+| **A5 — wake on spoken name** (transcript names the agent in free text) | ✅ | ✅ | ✅ |
+| **A5 — negative control** (call-presence entry alone does not wake) | ✅ | ✅ | ✅ |
+| **A5 — perceive the transcript** | ◑ ¹ | ✅ (explicit `query_links` read) | ✅ (content-gated ²) |
+| **A5 — reply lands as a channel child** | ◑ ¹ | ✅ | ✅ |
+| **Model wire format** | OpenAI-compatible | OpenAI-compatible | Anthropic-compatible |
+| **MCP tool-call protocol** | text / code-bridge ¹ | OpenAI `tool_calls` | Anthropic `tool_use` |
+
+¹ **OpenClaw A5 act half rides the real-model lane.** OpenClaw lists MCP tools in
+the system prompt and drives them through its own text / code-bridge tool protocol
+rather than an OpenAI `tools` array (the model `compat.supportsTools` flag does not
+flip its hook turn to native `tool_calls`), and its `action:agent` hook turn
+surfaces no model-visible user message. So the deterministic OpenAI-format mock
+cannot make OpenClaw perform the transcript read + reply. The reference
+`@coasys/openclaw-ad4m` plugin registers ad4m tools natively for a real model, so
+the perceive→act half belongs to the real-model lane. The **wake** half (real ad4m
+mention waker → real `/hooks/wake` ingress, with the negative control) is verified.
+
+² **Sovereign perceive is content-gated.** The presence-internal turn exposes only
+presence tools (`presence_reply_ad4m`, …), not ad4m read tools, and the native
+waker's inline body resolution does not surface in the headless test image — so
+perceive is proven by content-gating (the wake fires only because the transcript
+body, decoded via `ad4m://fn/parse_literal`, contains the agent's name; the
+call-presence entry alone never wakes) rather than by an explicit agent-issued
+read.
+
+**A5 scope.** Only the audio/video *transport* is mocked. The call-presence entry,
+the transcript `Message`, and the reply are real AD4M perspective links written
+over MCP, so A5 exercises the true perceive→act loop. Cross-user visibility needs
+neighbourhood sync and stays OUT of scope — A5 asserts the reply lands + reads back
+over MCP, not that a second agent sees it.
+
+**Finding — `get_mention_waker_config` over-matches.** The executor's
+`get_mention_waker_config` MCP tool ORs the agent DID into its mention query, which
+then matches every authored link's author-DID proof metadata — so it wakes on the
+agent's own writes, not only on a spoken name. The A5 waker drivers build the
+mention query name-only + `ad4m://ontology/`-excluded instead; the Sovereign
+`packages/ad4m` waker port already carries the ontology exclusion.
