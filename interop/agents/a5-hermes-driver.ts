@@ -48,9 +48,9 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
   const TOKEN = process.env.A5_ADMIN || "windtunnel-admin";
   const UUID = process.env.A5_UUID!;
   const CHAN = process.env.A5_CHAN || "a5h://channel";
-  const TRANSCRIPT = process.env.A5_TRANSCRIPT || "On the call someone said: hey Hex, can you summarise the last point?";
+  const TRANSCRIPT = process.env.A5_TRANSCRIPT || "On the call someone said: hey Aria, can you summarise the last point?";
   const MARKER = process.env.A5_MARKER || "A5H_REPLY_OK";
-  const NAME = process.env.A5_NAME || "Hex";
+  const NAME = process.env.A5_NAME || "Aria";
   const DEBOUNCE = 1000;
 
   async function signedPost(text: string): Promise<number> {

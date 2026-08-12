@@ -39,7 +39,7 @@ export async function mintPerspective(c: any, name: string): Promise<string> {
  * Seed a Message into a channel: a `has_child` link to the message node plus a
  * `message_body` link to an AD4M string literal. The waker's mention query
  * decodes the body via ad4m://fn/parse_literal, so a body naming the agent in
- * free text (e.g. "hey Hex …") triggers the spoken-name wake.
+ * free text (e.g. "hey Aria …") triggers the spoken-name wake.
  */
 export async function seedMentionMessage(
   c: any,

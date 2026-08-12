@@ -194,7 +194,7 @@ honestly.
 | **A5** | A/V loop (mocked) | ◑ wake only | ✅ full loop | ✅ full loop |
 
 **A5 — A/V action loop (mocked).** The agent wakes on a mocked call-presence
-entry, reads a transcript that names it in free speech ("… hey Hex, can you
+entry, reads a transcript that names it in free speech ("… hey Aria, can you
 summarise the last point?"), and replies in chat — all as ordinary AD4M
 perspective links / `Message` expressions (`interop/agents/mock-av.ts`). Only the
 media transport is mocked; presence, transcript, and reply are real channel

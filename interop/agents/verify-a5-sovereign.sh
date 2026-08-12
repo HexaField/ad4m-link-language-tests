@@ -10,7 +10,7 @@
 # (packages/ad4m) -> the presence-internal agent -> presence_reply_ad4m write-back.
 # The A5 deltas: (1) a mocked call-presence entry seeded on the channel, (2) a
 # transcript Message whose body names the agent in FREE, natural speech ("… hey
-# Hex, can you summarise the last point?") — the spoken-name wake, not a
+# Aria, can you summarise the last point?") — the spoken-name wake, not a
 # structured @mention, and (3) a content-gated perceive proof (negative control).
 #
 # Asserts the FULL loop:
@@ -57,7 +57,7 @@ EMAIL="sovereign-a5@agent.local"
 UPASS="sovereign-a5-pass-123"
 CHAN="a5sv://channel"
 MARKER="A5SV_REPLY_OK"
-TRANSCRIPT="Earlier on the call someone said: hey Hex, can you summarise the last point about the soil trial?"
+TRANSCRIPT="Earlier on the call someone said: hey Aria, can you summarise the last point about the soil trial?"
 MARK="summarise the last point"
 MCP_PORT=14451
 SV_PORT=14452
@@ -89,7 +89,7 @@ docker run -d --name "$EXE" --network "$NET" \
   -e RUN_HOLOCHAIN=false -e AGENT_PASSPHRASE=windtunnel-pass \
   -p 127.0.0.1:${MCP_PORT}:3001 -p 127.0.0.1:14453:12000 \
   --cap-drop ALL --cap-add CHOWN --cap-add SETUID --cap-add SETGID --cap-add DAC_OVERRIDE --cap-add FOWNER \
-  --security-opt no-new-privileges:true --memory 2g --cpus 1.5 --pids-limit 512 \
+  --security-opt no-new-privileges:true --memory 4g --cpus 1.5 --pids-limit 512 \
   "$EXE_IMG" >/dev/null
 for i in $(seq 1 60); do
   code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 3 -X POST http://127.0.0.1:${MCP_PORT}/mcp \
@@ -114,11 +114,11 @@ docker run -d --name "$MOCK" --network "$NET" -e MOCK_LLM_LOG=1 \
   -e MOCK_LLM_SCRIPT="[{\"tool_calls\":[{\"name\":\"mcp__sovereign__presence_reply_ad4m\",\"arguments\":{\"text\":\"$MARKER — on the call transcript, summarising the last point\"}}]},{\"text\":\"done\"}]" \
   "$MOCK_IMG" >/dev/null
 
-echo "[a5sv] start headless Sovereign (ad4m.host waker + agentName Hex + mock Anthropic)"
+echo "[a5sv] start headless Sovereign (ad4m.host waker + agentName Aria + mock Anthropic)"
 cat >/tmp/a5sv-config.json <<JSON
 {
   "server": { "port": 8080, "host": "0.0.0.0", "tls": { "enabled": false } },
-  "identity": { "agentName": "Hex", "agentIcon": "H" },
+  "identity": { "agentName": "Aria", "agentIcon": "A" },
   "workspace": { "root": "/data/home/ws", "globalPath": "" },
   "personality": { "sourceDir": "", "files": [], "separator": "\n" },
   "ad4m": { "host": "http://$EXE:12000", "mcpUrl": "http://$EXE:3001/mcp" },

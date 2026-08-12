@@ -83,7 +83,7 @@ echo "[a2sv] start headless Sovereign (ad4m MCP + mock Anthropic)"
 cat >/tmp/a2sv-config.json <<JSON
 {
   "server": { "port": 8080, "host": "0.0.0.0", "tls": { "enabled": false } },
-  "identity": { "agentName": "Hex", "agentIcon": "H" },
+  "identity": { "agentName": "Aria", "agentIcon": "A" },
   "workspace": { "root": "/data/home/ws", "globalPath": "" },
   "personality": { "sourceDir": "", "files": [], "separator": "\n" },
   "ad4m": { "host": "", "mcpUrl": "http://$EXE:3001/mcp" },
