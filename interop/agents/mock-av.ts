@@ -21,7 +21,7 @@
  *             presenceNode --ad4m://call_status--> literal://string:active
  *             presenceNode --ad4m://participant--> literal://string:mock-caller
  *     (b) a transcript Message whose body names the agent in FREE, natural speech
- *         (e.g. "… hey Hex, can you summarise the last point?"), seeded as an
+ *         (e.g. "… hey Aria, can you summarise the last point?"), seeded as an
  *         ordinary has_child + message_body pair. That free-text name is exactly
  *         the spoken-name wake the AD4M mention waker detects — NOT a structured
  *         @mention.

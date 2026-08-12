@@ -4,7 +4,7 @@
 # then writes its reply back into the same ad4m channel. Full closed loop.
 #
 # Drives Sovereign's OWN in-server native waker (packages/ad4m): the scenario
-# stands it up (ad4m.host + user token + agentName Hex), pins a perspective via
+# stands it up (ad4m.host + user token + agentName Aria), pins a perspective via
 # POST /api/ad4m/watch/perspectives, then injects a real @mention message on the
 # node (a has_child + message_body link whose body names the agent). The waker's
 # SPARQL mention query detects it, resolves the parent channel, and emits an
@@ -94,11 +94,11 @@ docker run -d --name "$MOCK" --network "$NET" -e MOCK_LLM_LOG=1 \
   -e MOCK_LLM_SCRIPT="[{\"tool_calls\":[{\"name\":\"mcp__sovereign__presence_reply_ad4m\",\"arguments\":{\"text\":\"$MARKER acknowledged the mention\"}}]},{\"text\":\"done\"}]" \
   "$MOCK_IMG" >/dev/null
 
-echo "[a4sv] start headless Sovereign (ad4m.host waker + agentName Hex + mock Anthropic)"
+echo "[a4sv] start headless Sovereign (ad4m.host waker + agentName Aria + mock Anthropic)"
 cat >/tmp/a4sv-config.json <<JSON
 {
   "server": { "port": 8080, "host": "0.0.0.0", "tls": { "enabled": false } },
-  "identity": { "agentName": "Hex", "agentIcon": "H" },
+  "identity": { "agentName": "Aria", "agentIcon": "A" },
   "workspace": { "root": "/data/home/ws", "globalPath": "" },
   "personality": { "sourceDir": "", "files": [], "separator": "\n" },
   "ad4m": { "host": "http://$EXE:12000", "mcpUrl": "http://$EXE:3001/mcp" },
@@ -160,8 +160,8 @@ for i in $(seq 1 15); do
 done
 
 CALLS0=$(docker logs "$MOCK" 2>&1 | grep -cE 'chat/completions|/messages' || echo 0)
-echo "[a4sv] inject a mention message ('Hey Hex …') on the node"
-cd "$ROOT" && npx tsx "$HERE/sovereign/waker-ad4m.ts" mention "http://127.0.0.1:${MCP_PORT}" "$JWT" "$UUID" "$CHAN" "$CHAN/msg/1" "Hey Hex, please acknowledge this" | sed 's/^/    /'
+echo "[a4sv] inject a mention message ('Hey Aria …') on the node"
+cd "$ROOT" && npx tsx "$HERE/sovereign/waker-ad4m.ts" mention "http://127.0.0.1:${MCP_PORT}" "$JWT" "$UUID" "$CHAN" "$CHAN/msg/1" "Hey Aria, please acknowledge this" | sed 's/^/    /'
 
 echo "[a4sv] wait for native waker -> presence agent turn (act-capable)"
 # Gate = the full loop. WOKE: the mock records, per request, whether the mention

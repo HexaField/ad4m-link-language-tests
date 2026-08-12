@@ -39,7 +39,7 @@ SECRET=a5-wake-secret
 CHAN="a5h://channel"
 MARKER="A5H_REPLY_OK"
 REPLY="a5h://channel/reply/1"
-TRANSCRIPT="On the call someone said: hey Hex, can you summarise the last point about the soil trial?"
+TRANSCRIPT="On the call someone said: hey Aria, can you summarise the last point about the soil trial?"
 # A URL-encoding-safe marker word that appears ONLY in the transcript body — so
 # has_mark proves the agent's read tool returned the transcript content (the raw
 # body literal is URL-encoded, so a phrase with spaces would not match).
@@ -78,7 +78,7 @@ docker run -d --name "$EXE" --network "$NET" \
   -e RUN_HOLOCHAIN=false -e AGENT_PASSPHRASE=windtunnel-pass \
   -p 127.0.0.1:${MCP_PORT}:3001 -p 127.0.0.1:${WS_PORT}:12000 \
   --cap-drop ALL --cap-add CHOWN --cap-add SETUID --cap-add SETGID --cap-add DAC_OVERRIDE --cap-add FOWNER \
-  --security-opt no-new-privileges:true --memory 2g --cpus 1.5 --pids-limit 512 \
+  --security-opt no-new-privileges:true --memory 4g --cpus 1.5 --pids-limit 512 \
   "$EXE_IMG" >/dev/null
 for i in $(seq 1 60); do
   code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 3 -X POST http://127.0.0.1:${MCP_PORT}/mcp \
@@ -145,7 +145,7 @@ set +e
 OUT=$(AD4M_PLUGIN_DIR="$PLUGIN_DIR" \
   A5_WS="http://127.0.0.1:${WS_PORT}" A5_MCP="http://127.0.0.1:${MCP_PORT}" A5_ADMIN="$ADMIN" \
   A5H_WEBHOOK="http://127.0.0.1:${HOOK_PORT}/webhooks/wake" A5H_SECRET="$SECRET" \
-  A5_UUID="$UUID" A5_CHAN="$CHAN" A5_TRANSCRIPT="$TRANSCRIPT" A5_MARKER="$MARKER" A5_NAME="Hex" \
+  A5_UUID="$UUID" A5_CHAN="$CHAN" A5_TRANSCRIPT="$TRANSCRIPT" A5_MARKER="$MARKER" A5_NAME="Aria" \
   timeout 180 npx tsx "$HERE/a5-hermes-driver.ts" 2>&1)
 RC=$?
 set -e

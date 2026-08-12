@@ -43,7 +43,7 @@ GW_TOKEN=a5-gw-tok
 CHAN="a5oc://channel"
 MARKER="A5OC_REPLY_OK"
 REPLY="a5oc://channel/reply/1"
-TRANSCRIPT="On the call someone said: hey Hex, can you summarise the last point about the soil trial?"
+TRANSCRIPT="On the call someone said: hey Aria, can you summarise the last point about the soil trial?"
 MARK="soil"
 MCP_PORT=14471
 WS_PORT=14472
@@ -79,7 +79,7 @@ docker run -d --name "$EXE" --network "$NET" \
   -e RUN_HOLOCHAIN=false -e AGENT_PASSPHRASE=windtunnel-pass \
   -p 127.0.0.1:${MCP_PORT}:3001 -p 127.0.0.1:${WS_PORT}:12000 \
   --cap-drop ALL --cap-add CHOWN --cap-add SETUID --cap-add SETGID --cap-add DAC_OVERRIDE --cap-add FOWNER \
-  --security-opt no-new-privileges:true --memory 2g --cpus 1.5 --pids-limit 512 \
+  --security-opt no-new-privileges:true --memory 4g --cpus 1.5 --pids-limit 512 \
   "$EXE_IMG" >/dev/null
 for i in $(seq 1 60); do
   code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 3 -X POST http://127.0.0.1:${MCP_PORT}/mcp \
@@ -131,7 +131,7 @@ set +e
 OUT=$(AD4M_PLUGIN_DIR="$PLUGIN_DIR" A5_WAKE_ONLY=1 \
   A5_WS="http://127.0.0.1:${WS_PORT}" A5_MCP="http://127.0.0.1:${MCP_PORT}" A5_ADMIN="$ADMIN" \
   A5_HOOK="http://127.0.0.1:${HOOK_PORT}/hooks/wake" A5_WAKE_TOKEN="$WAKE_TOKEN" \
-  A5_UUID="$UUID" A5_CHAN="$CHAN" A5_TRANSCRIPT="$TRANSCRIPT" A5_MARKER="$MARKER" A5_NAME="Hex" \
+  A5_UUID="$UUID" A5_CHAN="$CHAN" A5_TRANSCRIPT="$TRANSCRIPT" A5_MARKER="$MARKER" A5_NAME="Aria" \
   timeout 180 npx tsx "$HERE/a5-openclaw-driver.ts" 2>&1)
 RC=$?
 set -e
