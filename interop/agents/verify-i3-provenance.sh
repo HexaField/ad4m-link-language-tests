@@ -66,7 +66,7 @@ done
 echo "[i3] run driver (create -> human edit -> divergent re-run -> assert gate + overlay)"
 cd "$ROOT"
 set +e
-OUT=$(WS_HOST=127.0.0.1 WS_PORT=${WS_PORT} ADMIN="$ADMIN" MOCK_HOST=127.0.0.1 MOCK_PORT=${MOCK_PORT} \
+OUT=$(WS_HOST=127.0.0.1 WS_PORT=${WS_PORT} ADMIN="$ADMIN" MOCK_HOST=127.0.0.1 MOCK_PORT=${MOCK_PORT} MOCK_INTERNAL_URL=http://${MOCK}:8080/v1 \
   timeout 240 npx tsx "$HERE/interpretation/i3-provenance-driver.ts" 2>&1)
 RC=$?
 set -e

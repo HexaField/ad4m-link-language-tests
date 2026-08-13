@@ -28,6 +28,9 @@ const WS_PORT = Number(process.env.WS_PORT || 0);
 const ADMIN = process.env.ADMIN || "windtunnel-admin";
 const MOCK_HOST = process.env.MOCK_HOST || "127.0.0.1";
 const MOCK_PORT = Number(process.env.MOCK_PORT || 0);
+// Executor-facing mock URL (docker-network name), distinct from the host-published
+// loopback the driver uses for control-plane calls. See registerInterpretationModel.
+const MOCK_INTERNAL_URL = process.env.MOCK_INTERNAL_URL || `http://${MOCK_HOST}:${MOCK_PORT}/v1`;
 const BASE_PREFIX = "wt://i3/";
 
 function inferredValue(overlay: { inferred: [string, any][] }, predicate: string): any {
@@ -44,7 +47,7 @@ async function main() {
   await client.connect();
   console.log("[i3] connected to executor");
 
-  const modelId = await registerInterpretationModel(client, MOCK_HOST, MOCK_PORT);
+  const modelId = await registerInterpretationModel(client, MOCK_INTERNAL_URL);
   console.log(`[i3] registered interpretation model ${modelId}`);
 
   const persp = await client.createPerspective("i3-provenance");

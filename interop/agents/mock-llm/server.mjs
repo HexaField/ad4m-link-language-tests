@@ -96,26 +96,49 @@ function nextStep() {
   return s;
 }
 
-/** A request counts as interpretation-shaped when it carries no tool-call
- * surface (a plain completion, not an agent turn) and its body carries the
- * `build_interpretation_input` JSON — recognised by its two load-bearing
- * top-level keys. */
-function looksLikeInterpretation(body, hasTools) {
-  return !hasTools && body.includes('"classes"') && body.includes('"transcript"');
+/** The text the model actually sees, reconstructed from the parsed request.
+ *
+ * `build_interpretation_input`'s `{"classes":...,"transcript":...}` JSON rides
+ * *inside* a chat message's `content` field, so in the raw HTTP body its inner
+ * quotes are escaped (`\"classes\"`) — a literal `"classes"` never appears at
+ * the top level. Detecting/matching against the raw body therefore misses every
+ * interpretation call. Join the parsed message contents (OpenAI `messages[]`,
+ * plus an Anthropic top-level `system` string) so downstream checks see the
+ * real, unescaped payload; fall back to the raw body for shapes we can't parse. */
+function promptHaystack(payload, body) {
+  const parts = [];
+  if (typeof payload?.system === "string") parts.push(payload.system);
+  if (Array.isArray(payload?.messages)) {
+    for (const m of payload.messages) {
+      if (typeof m?.content === "string") parts.push(m.content);
+      else if (Array.isArray(m?.content)) {
+        for (const c of m.content) if (typeof c?.text === "string") parts.push(c.text);
+      }
+    }
+  }
+  return parts.length ? parts.join("\n") : body;
 }
 
-/** First rule whose `match` substring(s) all appear in the raw body; `undefined`
- * when none match (caller falls back to an empty-array extraction). */
-function matchInterpRule(body) {
+/** A request counts as interpretation-shaped when it carries no tool-call
+ * surface (a plain completion, not an agent turn) and a message content carries
+ * the `build_interpretation_input` JSON — recognised by its two load-bearing
+ * top-level keys, checked against the unescaped haystack. */
+function looksLikeInterpretation(haystack, hasTools) {
+  return !hasTools && haystack.includes('"classes"') && haystack.includes('"transcript"');
+}
+
+/** First rule whose `match` substring(s) all appear in the prompt haystack;
+ * `undefined` when none match (caller falls back to an empty-array extraction). */
+function matchInterpRule(haystack) {
   return interpRules.find((r) => {
     const needles = Array.isArray(r.match) ? r.match : [r.match];
-    return needles.length > 0 && needles.every((n) => body.includes(n));
+    return needles.length > 0 && needles.every((n) => haystack.includes(n));
   });
 }
 
-function interpretationReply(body) {
+function interpretationReply(haystack) {
   interpCalls += 1;
-  const rule = matchInterpRule(body);
+  const rule = matchInterpRule(haystack);
   if (rule) {
     const text = typeof rule.response === "string" ? rule.response : JSON.stringify(rule.response);
     if (LOG) console.error(`[mock-llm] interpretation call ${interpCalls} -> rule "${rule.label || (Array.isArray(rule.match) ? rule.match.join("+") : rule.match)}"`);
@@ -359,11 +382,13 @@ const server = http.createServer(async (req, res) => {
   // probes, tool-less summaries); those get a benign reply and do NOT consume a
   // step — otherwise a title call would eat the turn's scripted tool_call.
   const triggered = !TRIGGER || body.includes(TRIGGER);
+  const haystack = promptHaystack(payload, body);
   let s;
-  if (looksLikeInterpretation(body, hasTools)) {
+  if (looksLikeInterpretation(haystack, hasTools)) {
     // Generic-LLM-interpretation call (no tools, `{"classes":...,"transcript":...}`
-    // body) — answer from the content-keyed rule table; never touches `script`/`step`.
-    s = interpretationReply(body);
+    // in a message content) — answer from the content-keyed rule table; never
+    // touches `script`/`step`.
+    s = interpretationReply(haystack);
   } else {
     s = hasTools && triggered ? nextStep() : { text: structured ? JSON.stringify({ title: "session" }) : "ok" };
   }

@@ -68,7 +68,7 @@ done
 echo "[i4] run driver (accept: update->real, create->dropped; reject: create->deleted, update->suggestion dropped)"
 cd "$ROOT"
 set +e
-OUT=$(WS_HOST=127.0.0.1 WS_PORT=${WS_PORT} ADMIN="$ADMIN" MOCK_HOST=127.0.0.1 MOCK_PORT=${MOCK_PORT} \
+OUT=$(WS_HOST=127.0.0.1 WS_PORT=${WS_PORT} ADMIN="$ADMIN" MOCK_HOST=127.0.0.1 MOCK_PORT=${MOCK_PORT} MOCK_INTERNAL_URL=http://${MOCK}:8080/v1 \
   timeout 240 npx tsx "$HERE/interpretation/i4-accept-reject-driver.ts" 2>&1)
 RC=$?
 set -e

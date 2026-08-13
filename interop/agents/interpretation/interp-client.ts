@@ -93,6 +93,13 @@ export class InterpClient {
     public readonly host: string,
     public readonly port: number,
     public readonly token: string,
+    /**
+     * Passphrase used to generate + unlock the executor's main agent on first
+     * connect (see {@link ensureAgentReady}). Defaults to `AGENT_PASSPHRASE`
+     * (the value the verify scripts pass to the container), falling back to the
+     * harness default so a bare `new InterpClient(...)` still works.
+     */
+    public readonly passphrase: string = process.env.AGENT_PASSPHRASE ?? "windtunnel-pass",
   ) {}
 
   get wsUrl(): string {
@@ -135,6 +142,31 @@ export class InterpClient {
       });
     });
     await this.ready;
+    await this.ensureAgentReady();
+  }
+
+  /**
+   * Generate + unlock the executor's main agent if it is not already.
+   *
+   * A freshly-booted single-user executor has no main agent until one is
+   * generated; until then any `perspective.*` call panics deep in the REST
+   * server ("DID requested but not yet set in AgentService"), which surfaces to
+   * the client as a bare timeout. The container entrypoint tries to do this via
+   * the `ad4m` CLI, but its `agent status` output parsing is brittle, so we do
+   * it here over WS-RPC where the wire contract is stable.
+   *
+   * `agent.generate` creates the keypair, saves it under `passphrase`, and
+   * leaves the agent unlocked in one step; `agent.unlock` covers the (rare)
+   * already-initialised-but-locked case. Both run long — Holochain init and
+   * system-language loading happen inline — so they get a generous timeout.
+   */
+  async ensureAgentReady(): Promise<void> {
+    const status = await this.call<{ isInitialized?: boolean; isUnlocked?: boolean }>("agent.status", {});
+    if (!status?.isInitialized) {
+      await this.call("agent.generate", { passphrase: this.passphrase }, 180_000);
+    } else if (!status?.isUnlocked) {
+      await this.call("agent.unlock", { passphrase: this.passphrase }, 180_000);
+    }
   }
 
   close(): void {
@@ -202,7 +234,11 @@ export class InterpClient {
     uuid: string,
     query: { source?: string; predicate?: string; target?: string } = {},
   ): Promise<LinkExpressionLike[]> {
-    return this.call("perspective.queryLinks", { uuid, query });
+    // `perspective.queryLinks` reads source/predicate/target from the TOP LEVEL
+    // of params (rust-executor `perspectives_ws.rs::query_links` →
+    // `params.opt_str("source")` etc.), not from a nested `query` object —
+    // nesting them silently drops the filter and returns every link. Spread flat.
+    return this.call("perspective.queryLinks", { uuid, ...query });
   }
 
   // ── model-query (typed instance reads) ─────────────────────────────────
@@ -210,7 +246,14 @@ export class InterpClient {
   /** `query` mirrors the Rust `model_query` DSL, e.g. `{}` for "all instances",
    * `{"properties":["title","owner"]}` to select fields. */
   async modelQuery(uuid: string, className: string, query: Record<string, any> = {}): Promise<{ instances: any[]; totalCount: number }> {
-    return this.call("perspective.modelQuery", { uuid, class_name: className, query_json: JSON.stringify(query) });
+    // `perspective.modelQuery` returns the `{instances,...}` object *stringified*
+    // (rust-executor `model_query_handler` → `Ok(Value::String(json))`), so the
+    // WS result is a JSON string, not an object — parse it before returning.
+    const raw = await this.call<string | { instances: any[]; totalCount: number }>(
+      "perspective.modelQuery",
+      { uuid, class_name: className, query_json: JSON.stringify(query) },
+    );
+    return typeof raw === "string" ? JSON.parse(raw) : raw;
   }
 
   // ── scalar property write (mirrors a single-valued `setSingleTarget` setter) ──
@@ -301,9 +344,11 @@ export class InterpClient {
 
 /** Poll the executor's plain HTTP root until it answers (matches the
  * `docker-entrypoint.sh` readiness probe, `curl -sf http://localhost:12000/`).
- * The entrypoint's own `maybe_setup_agent()` (agent generate/unlock — needed
- * before wallet-dependent RPCs like JWT-signing will work) runs AFTER that
- * probe first succeeds, so a short grace margin follows before returning. */
+ * A short grace margin follows a first success so the WS-RPC server finishes
+ * binding before the client connects. The main agent is NOT assumed to exist at
+ * this point — `InterpClient.connect()` generates + unlocks it itself via
+ * {@link InterpClient.ensureAgentReady}, rather than relying on the entrypoint's
+ * brittle CLI-parsing `maybe_setup_agent()`. */
 export async function waitForExecutorHealth(host: string, port: number, timeoutMs = 120_000): Promise<void> {
   const deadline = Date.now() + timeoutMs;
   let lastErr: unknown;
@@ -351,17 +396,22 @@ export function sleep(ms: number): Promise<void> {
  * `AIService::replace_model_variables` resolves to whichever model holds the
  * default-LLM slot — so no separate per-task model wiring matters; setting the
  * default suffices (confirmed in `rust-executor/src/ai_service/mod.rs`).
+ *
+ * `baseUrl` MUST be reachable *from inside the executor container* — the
+ * executor, not this driver, is what dials the LLM. On the shared Docker
+ * network that means the mock's container-DNS name and its in-container port
+ * (e.g. `http://i1-mock:8080/v1`), NOT the host-published loopback port the
+ * driver itself uses for control-plane calls (`setInterpRules` etc.).
  */
 export async function registerInterpretationModel(
   client: InterpClient,
-  mockHost: string,
-  mockPort: number,
+  baseUrl: string,
   modelName = "interp-mock",
 ): Promise<string> {
   const modelId = await client.addModel({
     name: modelName,
     modelType: "LLM",
-    api: { baseUrl: `http://${mockHost}:${mockPort}/v1`, apiKey: "sk-mock", model: "mock-interp", apiType: "OPEN_AI" },
+    api: { baseUrl, apiKey: "sk-mock", model: "mock-interp", apiType: "OPEN_AI" },
   });
   await client.setDefaultModel("LLM", modelId);
   return modelId;

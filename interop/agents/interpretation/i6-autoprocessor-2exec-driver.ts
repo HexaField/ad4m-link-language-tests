@@ -42,6 +42,10 @@ const WS2_PORT = Number(process.env.WS2_PORT || 0);
 const ADMIN = process.env.ADMIN || "windtunnel-admin";
 const MOCK_HOST = process.env.MOCK_HOST || "127.0.0.1";
 const MOCK_PORT = Number(process.env.MOCK_PORT || 0);
+// Executor-facing mock URL (docker-network name) — both executors dial the same
+// mock container over the shared network, distinct from the host-published
+// loopback the driver uses for control-plane calls. See registerInterpretationModel.
+const MOCK_INTERNAL_URL = process.env.MOCK_INTERNAL_URL || `http://${MOCK_HOST}:${MOCK_PORT}/v1`;
 
 const ATTEMPT_NEIGHBOURHOOD = process.env.I6_ATTEMPT_NEIGHBOURHOOD === "1";
 const DIFFSYNC_HASH = process.env.I6_DIFFSYNC_LANGUAGE_HASH || "";
@@ -125,17 +129,24 @@ async function main() {
   console.log("[i6] connected to both executors");
 
   const [aliceModelId, bobModelId] = await Promise.all([
-    registerInterpretationModel(alice, MOCK_HOST, MOCK_PORT, "interp-mock-alice"),
-    registerInterpretationModel(bob, MOCK_HOST, MOCK_PORT, "interp-mock-bob"),
+    registerInterpretationModel(alice, MOCK_INTERNAL_URL, "interp-mock-alice"),
+    registerInterpretationModel(bob, MOCK_INTERNAL_URL, "interp-mock-bob"),
   ]);
   console.log(`[i6] registered interpretation model on both executors (alice=${aliceModelId}, bob=${bobModelId})`);
 
   // ---- Always-run portion: each executor independently runs its own
   // auto-processor pass correctly (the mechanism stays topology-agnostic). ----
-  const [aliceUuid, bobUuid] = await Promise.all([
-    runSingleExecutorCheck(alice, "alice", "wt://i6/alice/", "i6-alice-channel"),
-    runSingleExecutorCheck(bob, "bob", "wt://i6/bob/", "i6-bob-channel"),
-  ]);
+  //
+  // Sequential, NOT Promise.all: both executors dial the SAME mock LLM, whose
+  // interp-rule table is a single global slot (`POST /interp-rules` replaces it).
+  // Run concurrently, alice's and bob's `setInterpRules` calls race — bob's rules
+  // overwrite alice's before alice's watch loop fires, so alice's transcript
+  // matches no rule and the pass writes nothing (empty `processed` bases). Running
+  // one at a time keeps each pass's rules stable while its auto-processor runs.
+  // This portion asserts INDEPENDENCE, not concurrency; the opt-in
+  // shared-neighbourhood block below is the genuine cross-executor concurrency test.
+  const aliceUuid = await runSingleExecutorCheck(alice, "alice", "wt://i6/alice/", "i6-alice-channel");
+  const bobUuid = await runSingleExecutorCheck(bob, "bob", "wt://i6/bob/", "i6-bob-channel");
   console.log(`[i6] ok — both executors independently ran exactly one auto-processor pass (alice perspective=${aliceUuid}, bob perspective=${bobUuid})`);
 
   // ---- Opt-in, best-effort real neighbourhood join + shared-batch claim. ----

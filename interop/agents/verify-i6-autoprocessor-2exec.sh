@@ -91,7 +91,7 @@ echo "[i6] run driver (two independent auto-processor passes; opt-in best-effort
 cd "$ROOT"
 set +e
 OUT=$(WS1_HOST=127.0.0.1 WS1_PORT=${WS1_PORT} WS2_HOST=127.0.0.1 WS2_PORT=${WS2_PORT} ADMIN="$ADMIN" \
-  MOCK_HOST=127.0.0.1 MOCK_PORT=${MOCK_PORT} \
+  MOCK_HOST=127.0.0.1 MOCK_PORT=${MOCK_PORT} MOCK_INTERNAL_URL=http://${MOCK}:8080/v1 \
   I6_ATTEMPT_NEIGHBOURHOOD="${I6_ATTEMPT_NEIGHBOURHOOD:-}" I6_DIFFSYNC_LANGUAGE_HASH="${I6_DIFFSYNC_LANGUAGE_HASH:-}" \
   timeout 300 npx tsx "$HERE/interpretation/i6-autoprocessor-2exec-driver.ts" 2>&1)
 RC=$?
