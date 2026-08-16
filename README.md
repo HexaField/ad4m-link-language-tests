@@ -35,7 +35,8 @@ npm install
 
 Executors boot with `--bootstrap-mode local` by default: a local, KV-backed
 set of bootstrap languages (agent/perspective/neighbourhood/link/file-storage/
-language-language) generated from `bootstrap/` and pre-seeded into each
+language-language) sourced from the AD4M repo (`bootstrap-languages/local/`,
+resolved via `--ad4m-repo` / `AD4M_REPO`) and pre-seeded into each
 executor's data directory, with `--run-holochain false`. No Holochain
 conductor, no mainnet seed resolved via the Cloudflare Workers bootstrap CDN,
 no external network dependency. Cold start drops from a Holochain conductor
@@ -112,8 +113,8 @@ src/
 ├── report.ts         # Comparison report generator
 └── scenarios/        # All scenario implementations
 
-bootstrap/             # Local KV-backed bootstrap language sources + generate-seed.mjs
-                        # (generates dist/bootstrap/ at runtime — see Bootstrap modes)
+# Local bootstrap sources live in the AD4M repo at bootstrap-languages/local/
+# (resolved via --ad4m-repo / AD4M_REPO — generates dist/bootstrap/ at runtime)
 ```
 
 ---

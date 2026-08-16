@@ -61,8 +61,8 @@ src/
     ├── c1-convergence.ts# Multi-agent convergence (see below)
     └── ...              # perf/leak/mesh/sfu scenarios
 
-bootstrap/               # Local KV-backed bootstrap language sources (checked in) +
-                          # generate-seed.mjs — generates dist/bootstrap/ (gitignored) at runtime
+# Local bootstrap sources live in the AD4M repo at bootstrap-languages/local/
+# (not duplicated here — resolved via --ad4m-repo / AD4M_REPO at runtime)
 ```
 
 The runner boots a **fresh executor per scenario** on `--base-port` (default
@@ -78,9 +78,9 @@ at init and `--run-holochain false` at spawn.
 `--bootstrap-mode` (`local` | `mainnet` | `holochain`, default `local`, see
 `src/config.ts`) controls what each executor boots against:
 
-- **`local`** (default) — `bootstrap/generate-seed.mjs` (copied from
-  `ad4m/bootstrap-languages/local/` in the AD4M repo — same script the Docker
-  build uses) generates `dist/bootstrap/{docker_seed.json, languages/<hash>/
+- **`local`** (default) — `generate-seed.mjs` from the AD4M repo
+  (`<ad4m-repo>/bootstrap-languages/local/`, resolved via `--ad4m-repo`)
+  generates `dist/bootstrap/{docker_seed.json, languages/<hash>/
   bundle.js, language-language-kv/}` once per run (`ensureLocalBootstrapSeed()`
   in `executor.ts`, idempotent/cached — called up front in `main()` and
   lazily from `initExecutor`). Each scenario's `initExecutor` call passes

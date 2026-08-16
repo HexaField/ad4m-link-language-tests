@@ -280,7 +280,7 @@ async function main(): Promise<void> {
   // error surfaces immediately instead of 15 minutes into a build.
   if (config.bootstrapMode === "local") {
     try {
-      ensureLocalBootstrapSeed();
+      ensureLocalBootstrapSeed(config.adamRepoPath);
     } catch (err: any) {
       console.error(`[runner] ${err.message}`);
       process.exit(1);

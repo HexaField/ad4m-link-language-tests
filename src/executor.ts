@@ -23,11 +23,24 @@ import { config as windTunnelConfig, isMainnetBootstrapMode, type BootstrapMode 
 // see the per-scenario override in main.ts.
 
 const __filename = fileURLToPath(import.meta.url);
-// `src/executor.ts` (tsx) and `dist/executor.js` (tsc build) both sit one
-// directory below the repo root, so this resolves correctly either way.
 const REPO_ROOT = join(dirname(__filename), "..");
-const LOCAL_BOOTSTRAP_SRC_DIR = join(REPO_ROOT, "bootstrap");
 const LOCAL_BOOTSTRAP_OUT_DIR = join(REPO_ROOT, "dist", "bootstrap");
+
+/**
+ * Resolve the local bootstrap language source directory from the AD4M repo.
+ * These live at `<adamRepoPath>/bootstrap-languages/local/` — the paired
+ * AD4M PR (#893) puts them there. No duplicate copy in the wind tunnel.
+ */
+function localBootstrapSrcDir(adamRepoPath?: string): string {
+  const repo = adamRepoPath || windTunnelConfig.adamRepoPath;
+  if (!repo) {
+    throw new Error(
+      "AD4M repo path required for local bootstrap mode. " +
+      "Set via --ad4m-repo or AD4M_REPO, or use --bootstrap-mode mainnet."
+    );
+  }
+  return join(repo, "bootstrap-languages", "local");
+}
 
 export interface LocalBootstrapSeed {
   /** Path to the generated docker_seed.json (passed as --network-bootstrap-seed) */
@@ -48,23 +61,25 @@ let cachedLocalSeed: LocalBootstrapSeed | null = null;
  * again lazily from any executor start; only regenerates when the output
  * markers are missing.
  */
-export function ensureLocalBootstrapSeed(): LocalBootstrapSeed {
+export function ensureLocalBootstrapSeed(adamRepoPath?: string): LocalBootstrapSeed {
   if (cachedLocalSeed) return cachedLocalSeed;
 
   const seedPath = join(LOCAL_BOOTSTRAP_OUT_DIR, "docker_seed.json");
   const kvAddressPath = join(LOCAL_BOOTSTRAP_OUT_DIR, "language-language-kv", "address.txt");
 
   if (!existsSync(seedPath) || !existsSync(kvAddressPath)) {
-    if (!existsSync(LOCAL_BOOTSTRAP_SRC_DIR)) {
+    const srcDir = localBootstrapSrcDir(adamRepoPath);
+    if (!existsSync(srcDir)) {
       throw new Error(
-        `Local bootstrap sources not found at ${LOCAL_BOOTSTRAP_SRC_DIR}. ` +
-        `Run with --bootstrap-mode mainnet, or restore the bootstrap/ directory.`
+        `Local bootstrap sources not found at ${srcDir}. ` +
+        `Ensure the AD4M repo (--ad4m-repo) contains bootstrap-languages/local/, ` +
+        `or use --bootstrap-mode mainnet.`
       );
     }
-    console.log(`[executor] Generating local bootstrap seed into ${LOCAL_BOOTSTRAP_OUT_DIR}...`);
+    console.log(`[executor] Generating local bootstrap seed from ${srcDir} into ${LOCAL_BOOTSTRAP_OUT_DIR}...`);
     mkdirSync(LOCAL_BOOTSTRAP_OUT_DIR, { recursive: true });
     execSync(
-      `node "${join(LOCAL_BOOTSTRAP_SRC_DIR, "generate-seed.mjs")}" "${LOCAL_BOOTSTRAP_SRC_DIR}" "${LOCAL_BOOTSTRAP_OUT_DIR}"`,
+      `node "${join(srcDir, "generate-seed.mjs")}" "${srcDir}" "${LOCAL_BOOTSTRAP_OUT_DIR}"`,
       { stdio: "pipe", timeout: 30000 }
     );
   }
