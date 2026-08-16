@@ -5,7 +5,7 @@
 import { existsSync, mkdirSync, rmSync } from "fs";
 import { join } from "path";
 import { InstrumentedClient } from "./client.js";
-import { buildExecutor, startExecutor, waitForHealth, stopExecutor, sleep, initExecutor, ExecutorConfig } from "./executor.js";
+import { buildExecutor, startExecutor, waitForHealth, stopExecutor, sleep, initExecutor, ensureLocalBootstrapSeed, ExecutorConfig } from "./executor.js";
 import { Scenario, ScenarioContext, ScenarioResult } from "./scenario.js";
 import {
   s1ColdStart, s2LinkThroughput, s2bMillionLinks, s3PerspectiveScaling, s4LanguageInstallStorm,
@@ -37,7 +37,7 @@ import {
   t11CascadeRebalance,
 } from "./scenarios/index.js";
 import { consoleReport, jsonReport, comparisonReport } from "./reporters.js";
-import { config, validateAdamRepo } from "./config.js";
+import { config, validateAdamRepo, type BootstrapMode } from "./config.js";
 
 const RESULTS_DIR = config.resultsDir;
 
@@ -110,13 +110,29 @@ async function runScenariosForBranch(
 
     // Fresh executor for each scenario
     const dataPath = join(config.tmpDirBase, `ad4m-wt-data-${dirName}-${scenario.id}`);
+    // S9 cycles through modes via S9_MODE; the scenario itself defaults to
+    // "holochain" when unset (see s9-neighbourhood-memory-leak.ts parseMode),
+    // so mirror that default here rather than only matching the explicit string.
+    const s9Mode = (process.env.S9_MODE || "holochain").toLowerCase();
     // S9 in `no-languages` mode boots the executor with --language-language-only
     // so only the language-language Deno runtime loads. This is set here
     // because executor flags must be picked at spawn time, not from the scenario.
     const extraArgs: string[] = [];
-    if (scenario.id === "s9" && (process.env.S9_MODE || "").toLowerCase() === "no-languages") {
+    if (scenario.id === "s9" && s9Mode === "no-languages") {
       extraArgs.push("--language-language-only", "true");
     }
+
+    // Only c1 (convergence) and s9 in holochain mode actually exercise
+    // link-language sync — force them onto the mainnet/Holochain seed
+    // regardless of the global --bootstrap-mode default. Every other
+    // scenario respects the global setting (default: local).
+    let scenarioBootstrapMode: BootstrapMode = config.bootstrapMode;
+    if (scenario.id === "c1") {
+      scenarioBootstrapMode = "mainnet";
+    } else if (scenario.id === "s9" && (s9Mode === "holochain" || s9Mode === "neighbourhood")) {
+      scenarioBootstrapMode = "mainnet";
+    }
+
     const config_: ExecutorConfig = {
       branch,
       port,
@@ -125,7 +141,17 @@ async function runScenariosForBranch(
       adamRepoPath: config.adamRepoPath,
       buildDir: join(config.tmpDirBase, `ad4m-build-${dirName}`),
       extraArgs: extraArgs.length > 0 ? extraArgs : undefined,
+      bootstrapMode: scenarioBootstrapMode,
     };
+
+    // Scenarios that start additional executors on their own (c1's peer
+    // agent, m1/m2/m4/m5's extra executors) build their own ExecutorConfig
+    // without knowing about --bootstrap-mode, so startExecutor/initExecutor
+    // fall back to this global default. Set it for the duration of this
+    // scenario's run so those secondary executors inherit the same mode as
+    // the primary one above (restored in `finally`).
+    const previousBootstrapMode = config.bootstrapMode;
+    config.bootstrapMode = scenarioBootstrapMode;
 
     let proc: any = null;
     let proc2: any = null;
@@ -215,6 +241,7 @@ async function runScenariosForBranch(
         summary: `EXECUTOR FAILED: ${err.message}`,
       });
     } finally {
+      config.bootstrapMode = previousBootstrapMode;
       if (proc2) stopExecutor(proc2);
       if (proc) stopExecutor(proc);
       await sleep(2000);
@@ -246,6 +273,19 @@ async function main(): Promise<void> {
 
   console.log(`Scenarios: ${scenarios.map((s) => s.id).join(", ")}`);
   console.log(`Branches: ${branches.join(", ")}`);
+  console.log(`Bootstrap mode: ${config.bootstrapMode}`);
+
+  // Pre-generate the local bootstrap seed once up front (idempotent, cheap)
+  // so per-scenario executor starts just copy from it and any missing-source
+  // error surfaces immediately instead of 15 minutes into a build.
+  if (config.bootstrapMode === "local") {
+    try {
+      ensureLocalBootstrapSeed();
+    } catch (err: any) {
+      console.error(`[runner] ${err.message}`);
+      process.exit(1);
+    }
+  }
 
   // Locate binaries
   const binaryPaths = new Map<string, string>();

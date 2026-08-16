@@ -8,6 +8,30 @@
 import { tmpdir } from "os";
 import { join } from "path";
 
+export type BootstrapMode = "local" | "mainnet" | "holochain";
+
+const BOOTSTRAP_MODES: BootstrapMode[] = ["local", "mainnet", "holochain"];
+
+function normalizeBootstrapMode(raw: string | undefined): BootstrapMode | undefined {
+  if (!raw) return undefined;
+  const v = raw.toLowerCase();
+  if ((BOOTSTRAP_MODES as string[]).includes(v)) return v as BootstrapMode;
+  console.error(
+    `[config] Unknown bootstrap mode "${raw}" (expected: ${BOOTSTRAP_MODES.join(" | ")}). Falling back to "local".`
+  );
+  return undefined;
+}
+
+/**
+ * True for modes that boot the executor against the mainnet seed with
+ * Holochain enabled (i.e. current/legacy behaviour). "holochain" is an
+ * explicit alias for "mainnet" — same behaviour, clearer intent at the
+ * call site for scenarios that specifically need link-language sync.
+ */
+export function isMainnetBootstrapMode(mode: BootstrapMode): boolean {
+  return mode === "mainnet" || mode === "holochain";
+}
+
 export interface WindTunnelConfig {
   /** Path to the AD4M repo (for building executor from source) */
   adamRepoPath: string;
@@ -19,6 +43,18 @@ export interface WindTunnelConfig {
   basePort: number;
   /** Directory for storing results */
   resultsDir: string;
+  /**
+   * Which bootstrap seed executors boot against:
+   *  - "local"     Local KV-backed bootstrap languages, no Holochain, no
+   *                 external network deps (default). The vast majority of
+   *                 scenarios never create a neighbourhood or publish a
+   *                 language, so they don't need the mainnet seed.
+   *  - "mainnet"    Current/legacy behaviour: mainnet seed resolved via the
+   *                 Cloudflare Workers bootstrap CDN, p-diff-sync (Holochain)
+   *                 as the default link language.
+   *  - "holochain"  Alias for "mainnet" — same behaviour, clearer intent.
+   */
+  bootstrapMode: BootstrapMode;
 }
 
 /**
@@ -46,6 +82,9 @@ function parseConfigArgs(): Partial<WindTunnelConfig> {
         break;
       case "--results-dir":
         result.resultsDir = args[++i];
+        break;
+      case "--bootstrap-mode":
+        result.bootstrapMode = normalizeBootstrapMode(args[++i]);
         break;
     }
   }
@@ -80,6 +119,10 @@ function resolveConfig(): WindTunnelConfig {
       cliArgs.resultsDir
       ?? process.env.AD4M_WT_RESULTS_DIR
       ?? join(process.cwd(), "results"),
+    bootstrapMode:
+      cliArgs.bootstrapMode
+      ?? normalizeBootstrapMode(process.env.AD4M_WT_BOOTSTRAP_MODE)
+      ?? "local",
   };
 }
 

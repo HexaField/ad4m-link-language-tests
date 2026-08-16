@@ -42,7 +42,8 @@ npm install
 Key flags/env (CLI wins over env): `--admin-token` / `AD4M_ADMIN_TOKEN`
 (default `test123`), `--base-port` / `AD4M_WT_BASE_PORT` (default `12100`),
 `--tmp-dir` / `AD4M_WT_TMPDIR`, `--ad4m-repo` / `AD4M_REPO` (needed only when
-building). See README for the full table.
+building), `--bootstrap-mode` / `AD4M_WT_BOOTSTRAP_MODE` (default `local` —
+see Bootstrap modes below). See README for the full table.
 
 ## Architecture
 
@@ -50,7 +51,8 @@ building). See README for the full table.
 src/
 ├── main.ts             # Runner: parses flags, boots one executor per scenario
 ├── client.ts           # InstrumentedClient — WS-RPC wrapper with timing
-├── executor.ts         # Executor lifecycle: build / start / waitForHealth / stop
+├── executor.ts         # Executor lifecycle: build / start / waitForHealth / stop / local bootstrap seed
+├── config.ts            # Env/CLI config singleton, incl. BootstrapMode
 ├── scenario.ts         # Scenario + ScenarioContext + ScenarioResult interfaces
 ├── convergence/
 │   └── languages.ts     # Registry of convergence languages (bundle path, backend, template params)
@@ -58,12 +60,67 @@ src/
     ├── index.ts         # Scenario registry — every scenario must be registered here
     ├── c1-convergence.ts# Multi-agent convergence (see below)
     └── ...              # perf/leak/mesh/sfu scenarios
+
+bootstrap/               # Local KV-backed bootstrap language sources (checked in) +
+                          # generate-seed.mjs — generates dist/bootstrap/ (gitignored) at runtime
 ```
 
 The runner boots a **fresh executor per scenario** on `--base-port` (default
-12100). Scenarios that need a second executor (m1, c1) start it themselves on
-`port + 1` using `ctx.executorPath`. Executors run with
-`--hc-use-bootstrap false --hc-use-proxy false` and admin token from ctx.
+12100). Scenarios that need a second executor (m1, c1, m2, m4, m5) start it
+themselves on other ports using `ctx.executorPath` / their own
+`ExecutorConfig`. Executors always run with `--hc-use-bootstrap false
+--hc-use-proxy false` and admin token from ctx; in `local` bootstrap mode
+they also get `--network-bootstrap-seed <dist/bootstrap/docker_seed.json>`
+at init and `--run-holochain false` at spawn.
+
+## Bootstrap modes
+
+`--bootstrap-mode` (`local` | `mainnet` | `holochain`, default `local`, see
+`src/config.ts`) controls what each executor boots against:
+
+- **`local`** (default) — `bootstrap/generate-seed.mjs` (copied from
+  `ad4m/bootstrap-languages/local/` in the AD4M repo — same script the Docker
+  build uses) generates `dist/bootstrap/{docker_seed.json, languages/<hash>/
+  bundle.js, language-language-kv/}` once per run (`ensureLocalBootstrapSeed()`
+  in `executor.ts`, idempotent/cached — called up front in `main()` and
+  lazily from `initExecutor`). Each scenario's `initExecutor` call passes
+  `--network-bootstrap-seed` at `init` time, then copies the pre-generated
+  language bundles + the language-language's KV store into
+  `<dataPath>/ad4m/languages/<hash>/` — mirroring the AD4M Docker
+  entrypoint's pre-seeding logic — so the local, KV-backed language-language
+  can resolve the other 5 system languages via `storageGet` with zero network
+  calls. `startExecutor` also appends `--run-holochain false`. Verified: s1
+  cold-start executor reaches health in ~500ms with no Holochain conductor.
+- **`mainnet`** — current/legacy behaviour: mainnet seed baked into the
+  binary, Holochain conductor starts and reaches `bootstrap.ad4m.dev`.
+- **`holochain`** — alias for `mainnet` (`isMainnetBootstrapMode()` in
+  `config.ts` treats them identically); use it for call-site clarity when a
+  scenario specifically needs link-language sync.
+
+Only **c1** and **s9** (when `S9_MODE` resolves to `holochain` —
+`s9-neighbourhood-memory-leak.ts`'s own default when the env var is unset)
+actually create a neighbourhood or publish a language. Every other scenario
+just exercises perspectives/links/agents/queries and never needed the
+mainnet seed. `runScenariosForBranch` in `main.ts` computes a per-scenario
+`scenarioBootstrapMode`, forcing `mainnet` for those two cases regardless of
+the global default, and **also temporarily mutates the `config.bootstrapMode`
+singleton for the duration of `scenario.run()`**. That second part matters:
+c1/m2/m4/m5 start additional executors from *inside* the scenario via their
+own hand-built `ExecutorConfig` literals that don't set `bootstrapMode` at
+all — they fall back to the singleton in `startExecutor`/`initExecutor`, so
+without the temporary mutation c1's second (peer) executor would silently
+stay on the global default and break convergence even though c1's primary
+executor was correctly forced to mainnet. If you add a new scenario that
+starts its own executors and needs a specific bootstrap mode, either set
+`ExecutorConfig.bootstrapMode` explicitly or rely on this global-default
+fallback — don't assume `ExecutorConfig` defaults are safe to omit for
+link-language scenarios.
+
+Building an AD4M branch that predates the `--run-holochain` /
+`bootstrap-languages/local/` support (merged in AD4M PR #893,
+`feat/local-bootstrap-and-server-link-language`) will fail argument parsing
+in `local` mode — pass `--bootstrap-mode mainnet` when testing against older
+branches.
 
 ## C1 convergence — how it works
 
@@ -172,3 +229,8 @@ them?
   unreachable — never fabricate a pass.
 - Executor flags are chosen at spawn time in the runner/scenario, not read from
   the scenario object after boot.
+- If a new scenario creates a neighbourhood or publishes a language (i.e.
+  needs real link-language sync, not just perspectives/links/agents/queries),
+  add it to the mainnet-forcing check in `runScenariosForBranch` (`main.ts`)
+  next to c1/s9 — otherwise it silently runs against the local bootstrap
+  languages and has no link language to install. See Bootstrap modes above.
