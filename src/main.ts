@@ -16,7 +16,7 @@ import {
   a1McpThroughput,
   s9NeighbourhoodMemoryLeak,
   s10SubscriptionFanout, s12PersistenceColdQuery, s13ReadWriteMix, s14MultiPerspectiveLoad,
-  s15LeakAttribution,
+  s15LeakAttribution, s16IdleCpu,
   // WebRTC mesh baselines
   w1Mesh2Peer, w1mMeshMultiMachine, w2Mesh4Peer, w3MeshRtt, w4MeshBandwidthScaling,
   w5TurnFallback,
@@ -51,7 +51,7 @@ const ALL_SCENARIOS: Scenario[] = [
   a1McpThroughput,
   s9NeighbourhoodMemoryLeak,
   s10SubscriptionFanout, s12PersistenceColdQuery, s13ReadWriteMix, s14MultiPerspectiveLoad,
-  s15LeakAttribution,
+  s15LeakAttribution, s16IdleCpu,
   // WebRTC mesh baselines
   w1Mesh2Peer, w1mMeshMultiMachine, w2Mesh4Peer, w3MeshRtt, w4MeshBandwidthScaling,
   w5TurnFallback,
