@@ -16,9 +16,9 @@
  * Config via env:
  *   PORT             — listen port (default 8080)
  *   MOCK_LLM_LOG=1   — log each incoming request to stderr (learn a harness's contract)
- *   MOCK_LLM_SCRIPT  — JSON array of steps; each step takes {tool_calls:[{name,arguments}]} or {text:"..."}
+ *   MOCK_LLM_SCRIPT  — JSON array of steps; each step is {tool_calls:[{name,arguments}]} or {text:"..."}
  *
- * The script advances one step per chat/messages request; once it runs out it
+ * The script advances one step per chat/messages request; when it runs out it
  * returns a final "done" text. A fresh instance per scenario keeps it deterministic.
  *
  * ── Interpretation mode (I-series) ──
@@ -57,10 +57,10 @@ import http from "node:http";
 
 const PORT = Number(process.env.PORT || 8080);
 const LOG = process.env.MOCK_LLM_LOG === "1";
-// Optional content gate: when set, only turns whose request body contains this
-// substring serve the scripted plan (tool_calls); every other tool-bearing
+// Optional content gate: when set, the scripted plan (tool_calls) is served only
+// on turns whose request body contains this substring; every other tool-bearing
 // turn (e.g. a harness's boot/auto-start turn) gets a benign reply and does NOT
-// consume a step. Protects a scripted tool_call from an unrelated turn eating it.
+// consume a step. Keeps a scripted tool_call from being eaten by an unrelated turn.
 const TRIGGER = process.env.MOCK_LLM_TRIGGER || "";
 // Optional perceive marker: when set, each logged request records has_mark=<bool>
 // (does the request body carry this substring). A5 sets it to a distinctive

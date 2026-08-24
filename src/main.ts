@@ -13,7 +13,10 @@ import {
   m1NeighbourhoodSync, m2MultiExecutorScale, m3LinkLanguageComparison,
   m4WriteLoadUnderSync, m5ConcurrentNeighbourhoods,
   c1Convergence,
-  a1McpThroughput,
+  a3McpThroughput,
+  a2ProvisionConnect,
+  a4Waker,
+  a5AvLoop,
   s9NeighbourhoodMemoryLeak,
   s10SubscriptionFanout, s12PersistenceColdQuery, s13ReadWriteMix, s14MultiPerspectiveLoad,
   s15LeakAttribution,
@@ -48,7 +51,10 @@ const ALL_SCENARIOS: Scenario[] = [
   m1NeighbourhoodSync, m2MultiExecutorScale, m3LinkLanguageComparison,
   m4WriteLoadUnderSync, m5ConcurrentNeighbourhoods,
   c1Convergence,
-  a1McpThroughput,
+  a3McpThroughput,
+  a2ProvisionConnect,
+  a4Waker,
+  a5AvLoop,
   s9NeighbourhoodMemoryLeak,
   s10SubscriptionFanout, s12PersistenceColdQuery, s13ReadWriteMix, s14MultiPerspectiveLoad,
   s15LeakAttribution,
@@ -107,6 +113,41 @@ async function runScenariosForBranch(
 
   for (const scenario of scenarios) {
     console.log(`\n[runner] Running ${scenario.id}: ${scenario.name} on ${branch}...`);
+
+    // Pod-managed scenarios (agent-harness A-series) stand up and tear down
+    // their own Docker environment; the runner does not boot a native executor
+    // or a client for them.
+    if (scenario.managesOwnEnvironment) {
+      console.log(`[runner] ${scenario.id} manages its own environment — skipping native executor`);
+      const ctx: ScenarioContext = {
+        client: undefined as any,
+        branch,
+        port,
+        adminToken: config.adminToken,
+        adamRepoPath: config.adamRepoPath,
+        tmpDirBase: config.tmpDirBase,
+        executorPath: binaryPath || undefined,
+      };
+      try {
+        const result = await scenario.run(ctx);
+        results.push(result);
+        console.log(`[runner] ${scenario.id} ${result.passed ? "PASS" : "FAIL"}: ${result.summary}`);
+      } catch (err: any) {
+        console.error(`[runner] ${scenario.id} CRASHED: ${err.message}`);
+        results.push({
+          scenario: `${scenario.id}-provision-connect`,
+          branch,
+          passed: false,
+          startTime: Date.now(),
+          endTime: Date.now(),
+          durationMs: 0,
+          metrics: { error: err.message },
+          samples: [],
+          summary: `CRASHED: ${err.message}`,
+        });
+      }
+      continue;
+    }
 
     // Fresh executor for each scenario
     const dataPath = join(config.tmpDirBase, `ad4m-wt-data-${dirName}-${scenario.id}`);
@@ -247,9 +288,16 @@ async function main(): Promise<void> {
   console.log(`Scenarios: ${scenarios.map((s) => s.id).join(", ")}`);
   console.log(`Branches: ${branches.join(", ")}`);
 
-  // Locate binaries
+  // Locate binaries. Pod-managed scenarios (agent-harness A-series) run their
+  // own containerised node, so a native executor binary is only required when a
+  // non-pod scenario is selected.
   const binaryPaths = new Map<string, string>();
-  if (args.executorPath) {
+  const needsBinary = scenarios.some((s) => !s.managesOwnEnvironment);
+  if (!needsBinary) {
+    // Non-empty placeholder: pod-managed scenarios ignore it, but the run loop
+    // treats an empty string as "no binary" and would skip the branch.
+    for (const b of branches) binaryPaths.set(b, "pod-managed");
+  } else if (args.executorPath) {
     for (const b of branches) binaryPaths.set(b, args.executorPath);
   } else if (args.skipBuild) {
     for (const b of branches) {

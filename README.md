@@ -165,6 +165,59 @@ See [`INFRASTRUCTURE.md`](INFRASTRUCTURE.md) for full deployment guide.
 
 ---
 
+### 🤖 Agent-Harness Wind Tunnel (A-series)
+
+Three external AI agent harnesses — **OpenClaw, Hermes, Sovereign** — each drive an
+ADAM node across the real integration surface (init/connect, MCP, waker, and a
+mocked audio/video action loop). Every harness runs inside its own hardened Docker
+pod against a containerised executor; a mock LLM (`interop/agents/mock-llm/`, both
+OpenAI and Anthropic wire formats) makes every non-model failure reproducible. The
+only mocks stay at the two chosen edges: the A/V transport and the LLM.
+
+```bash
+./run.sh --scenario a2   # provision & connect
+./run.sh --scenario a3   # MCP action round-trip
+./run.sh --scenario a4   # waker
+./run.sh --scenario a5   # A/V action loop (mocked)
+```
+
+Each scenario stands up + tears down its own pod (`interop/agents/verify-*.sh`);
+`KEEP=1` leaves a pod up for debugging. Set `AD4M_PLUGIN_DIR` to a `plugins/ad4m`
+checkout for the waker routes. A route whose image or dependency is absent skips
+honestly.
+
+| ID | Scenario | OpenClaw | Hermes | Sovereign |
+|----|----------|----------|--------|-----------|
+| **A2** | Provision & connect | ✅ | ✅ | ✅ |
+| **A3** | MCP action round-trip | ✅ | ✅ | ✅ |
+| **A4** | Waker | ✅ | ✅ | ✅ |
+| **A5** | A/V loop (mocked) | ◑ wake only | ✅ full loop | ✅ full loop |
+
+**A5 — A/V action loop (mocked).** The agent wakes on a mocked call-presence
+entry, reads a transcript that names it in free speech ("… hey Aria, can you
+summarise the last point?"), and replies in chat — all as ordinary AD4M
+perspective links / `Message` expressions (`interop/agents/mock-av.ts`). Only the
+media transport is mocked; presence, transcript, and reply are real channel
+writes, so the true perceive→act loop runs over MCP. A negative control proves the
+wake rides the transcript's spoken name (the call-presence entry alone never
+wakes), not mere channel activity. Cross-user visibility needs neighbourhood sync
+and stays out of scope — A5 asserts the reply lands + reads back.
+
+- **Sovereign (full loop)** — the native in-server waker wakes the presence agent
+  on the spoken name; it replies via `presence_reply_ad4m`, which posts a child
+  back into the channel. Perceive rides content-gating (the presence turn exposes
+  only presence tools, so the wake, not an explicit read, carries the transcript).
+- **Hermes (full loop)** — the real ad4m mention waker → signed webhook → a Hermes
+  turn (`mcp_servers.ad4m`) that reads the transcript (`query_links`) then writes
+  the reply. Perceive is an explicit agent read before the write.
+- **OpenClaw (wake only)** — the real ad4m mention waker → OpenClaw's real
+  `/hooks/wake` ingress, with the negative control. The perceive→act-via-MCP half
+  is **not** driven on the mock lane: OpenClaw lists MCP tools in the system prompt
+  and drives them through its own text / code-bridge protocol (not OpenAI
+  `tool_calls`), and its hook turn surfaces no model-visible prompt — so the
+  deterministic mock cannot make it act. That half rides the real-model lane, where
+  the reference `@coasys/openclaw-ad4m` plugin registers ad4m tools natively.
+
 ### 🧩 Interpretation Wind Tunnel (I-series)
 
 Six scenarios drive AD4M's generic-LLM-interpretation feature end to end
