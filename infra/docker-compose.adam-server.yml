@@ -3,10 +3,13 @@
 #
 # The server creates its SQLite database and server identity key on first
 # boot inside the named volume. No external dependencies.
+#
+# NOTE: link-server now lives inside the ad4m monorepo (coasys/ad4m/link-server).
+# Build context points into the monorepo checkout.
 services:
   link-server:
     build:
-      context: ../../link-server
+      context: ../../ad4m/link-server
       dockerfile: Dockerfile
     container_name: ad4m-test-adam-server
     ports:
@@ -20,7 +23,6 @@ services:
       # all subsequent agents auto-admitted. In production the admin
       # controls the ACL explicitly.
       - AUTO_ADMIT=true
-      - SKIP_LINK_VERIFICATION=true
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:3457/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]

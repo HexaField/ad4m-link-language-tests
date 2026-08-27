@@ -463,21 +463,24 @@ export const CONVERGENCE_LANGUAGES: ConvergenceLanguage[] = [
     // The server provides the single source of truth — no P2P, no state
     // resolution algorithm. Diffs apply in server-receipt order; OR-Set
     // semantics come from the link hash (additions/removals keyed by the
-    // same hash cancel correctly). Revision = SHA-256 of sorted active
-    // link hashes (content hash, not a counter).
+    // same hash cancel correctly). Revision = XOR of active link hashes
+    // (O(1) per commit, commutative/associative/self-inverse).
     //
-    // WebSocket push delivers diffs and telepresence signals in real-time;
-    // the HTTP poll path serves as fallback. The language emits every
-    // inbound diff via emitPerspectiveDiff (the critical trap 7/13
-    // languages hit).
+    // WebSocket push delivers diffs and telepresence signals in real-time
+    // via first-message auth (JWT in first frame, not query params); the
+    // HTTP poll path serves as fallback. The language emits every inbound
+    // diff via emitPerspectiveDiff (the critical trap 7/13 languages hit).
     //
     // Backend: link-server (Docker, port 3457). No sidecar — the
     // language talks directly to the server over HTTP + WebSocket.
     // healthTcp probes the server's HTTP port.
+    //
+    // NOTE: Both link-server and server-link-language now live inside the
+    // ad4m monorepo (coasys/ad4m). The standalone repos are archived.
     id: "adam-server",
     bundlePath: resolve(
       WORKSPACE_ROOT,
-      "server-link-language/build/bundle.js"
+      "ad4m/bootstrap-languages/server-link-language/build/bundle.js"
     ),
     possibleTemplateParams: ["SERVER_URL", "ROOM_ID"],
     backend: {
