@@ -64,6 +64,7 @@ export const t11CascadeRebalance: Scenario = {
     const metrics: Record<string, unknown> = {};
 
     const cluster = await startCluster({
+      executorBin: ctx.executorPath!,
       nodeCount: 2,
       maxParticipantsPerNode: MAX_PER_NODE,
       wsBasePort: WS_BASE,

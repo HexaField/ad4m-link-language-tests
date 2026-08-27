@@ -45,6 +45,7 @@ export const t4SfuCascade3Node: Scenario = {
 
     try {
       cluster = await startCluster({
+        executorBin: ctx.executorPath!,
         nodeCount: 3,
         maxParticipantsPerNode: MAX_PER_NODE,
         wsBasePort: 16100,

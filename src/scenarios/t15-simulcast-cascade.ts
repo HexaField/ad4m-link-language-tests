@@ -68,6 +68,7 @@ export const t15SimulcastCascade: Scenario = {
 
     try {
       cluster = await startCluster({
+        executorBin: ctx.executorPath!,
         nodeCount: 2,
         maxParticipantsPerNode: MAX_PER_NODE,
         wsBasePort: WS_BASE,

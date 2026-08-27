@@ -22,7 +22,8 @@ import {
 const ROOM_NAME = "m3-cascade-failover";
 const NEIGHBOURHOOD = `windtunnel://m3`;
 const TOTAL_PEERS = 6;
-const MAX_PER_NODE = 5;
+// Must absorb all peers after one node dies: B's original share + A's peers.
+const MAX_PER_NODE = TOTAL_PEERS;
 
 interface TrackedPeer {
   peer: WebRtcPeer;
@@ -47,6 +48,7 @@ export const m3CascadeFailover: Scenario = {
 
     try {
       cluster = await startCluster({
+        executorBin: ctx.executorPath!,
         nodeCount: 2,
         maxParticipantsPerNode: MAX_PER_NODE,
         wsBasePort: 16500,

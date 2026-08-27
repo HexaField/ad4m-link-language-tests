@@ -48,6 +48,7 @@ export const s3MaxParticipantsEnforced: Scenario = {
 
     try {
       cluster = await startCluster({
+        executorBin: ctx.executorPath!,
         nodeCount: 2,
         maxParticipantsPerNode: MAX_PER_NODE,
         wsBasePort: 13300,

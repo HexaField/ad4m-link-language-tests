@@ -19,9 +19,6 @@ import { spawn, execSync, ChildProcess } from "node:child_process";
 
 import { InstrumentedClient } from "./client.js";
 
-const BIN =
-  process.env.AD4M_EXECUTOR_BIN ??
-  "../ad4m/target/release/ad4m-executor";
 const ADMIN_TOKEN = process.env.AD4M_ADMIN_TOKEN ?? "test123";
 
 export interface CascadeNode {
@@ -41,6 +38,8 @@ export interface CascadeNode {
 export interface CascadeClusterOptions {
   nodeCount: number;
   maxParticipantsPerNode: number;
+  /** Absolute path to the ad4m-executor binary. */
+  executorBin: string;
   /** WS RPC port base — node `i` listens on `wsBasePort + i`. */
   wsBasePort?: number;
   /** Cascade gossip port base — node `i` binds `gossipBasePort + i`. */
@@ -70,15 +69,16 @@ async function waitForHealth(port: number, timeoutMs = 60_000): Promise<void> {
   throw new Error(`Executor on port ${port} did not become healthy in ${timeoutMs}ms`);
 }
 
-function initDataDir(dataPath: string): void {
+function initDataDir(bin: string, dataPath: string): void {
   if (existsSync(dataPath)) {
     rmSync(dataPath, { recursive: true, force: true });
   }
   mkdirSync(dataPath, { recursive: true });
-  execSync(`${BIN} init --data-path ${dataPath}`, { stdio: "pipe" });
+  execSync(`${bin} init --data-path ${dataPath}`, { stdio: "pipe" });
 }
 
 export async function startCluster(opts: CascadeClusterOptions): Promise<CascadeCluster> {
+  const bin = opts.executorBin;
   const wsBasePort = opts.wsBasePort ?? 12000;
   const gossipBasePort = opts.gossipBasePort ?? 24000;
   const nodes: CascadeNode[] = [];
@@ -120,7 +120,7 @@ export async function startCluster(opts: CascadeClusterOptions): Promise<Cascade
   const spawnedClients: InstrumentedClient[] = [];
   for (let i = 0; i < plannedNodes.length; i++) {
     const planned = plannedNodes[i];
-    initDataDir(planned.dataPath);
+    initDataDir(bin, planned.dataPath);
 
     const peerEntries = plannedNodes
       .filter((_, j) => j !== i)
@@ -150,7 +150,7 @@ export async function startCluster(opts: CascadeClusterOptions): Promise<Cascade
     // executor log is the only place we can see what state it's
     // wedged on.  Otherwise stdout/stderr just buffer into the
     // ChildProcess pipes and we never read them.
-    const proc = spawn(BIN, args, {
+    const proc = spawn(bin, args, {
       stdio: ["ignore", "pipe", "pipe"],
       env: { ...process.env, RUST_LOG: "info" },
     });

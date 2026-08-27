@@ -55,6 +55,7 @@ export const t3SfuCascade2Node: Scenario = {
 
     try {
       cluster = await startCluster({
+        executorBin: ctx.executorPath!,
         nodeCount: 2,
         maxParticipantsPerNode: MAX_PER_NODE,
         // Safe range: 16000+ avoids ad4m-prod (13000), agent-harness (14000), probe (15000).
