@@ -259,7 +259,9 @@ For building new Expression Languages, see [`coasys/ad4m-expression-language-tem
 | Largest existing network reach | **ActivityPub** (Fediverse) or **Nostr** |
 | W3C standards compliance | **Solid** (LDP + RDF) or **ActivityPub** (W3C Rec) |
 | Content-addressed / immutable data | **IPFS**, **Holochain**, **peer2panda**, **Anytype**, or **Freenet** |
-| Easiest self-hosting | **Nostr** (single relay) or **Matrix** (Conduit) |
+| Easiest self-hosting | **ADAM Server** (single binary/container), **Nostr** (single relay), or **Matrix** (Conduit) |
+| Self-hosted with E2E encryption + ACL | **ADAM Server** (room-level AES-256-GCM, DID-based ACL) |
+| Federation between self-hosted servers | **ADAM Server** (webhook-based diff relay) or **Matrix** |
 | Bridge to Bluesky / AT network | **AT Protocol** |
 | Bridge to Anytype / any-sync network | **Anytype** |
 | Bridge to Freenet / contract network | **Freenet** |
