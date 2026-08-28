@@ -107,6 +107,15 @@ JS bundle the executor installs), `possibleTemplateParams`,
 `makeTemplateData(neighbourhoodId)`, and optional `backend { compose, healthTcp }`.
 The scenario reads everything else from there.
 
+### link-server lives inside the ad4m monorepo
+
+Unlike every other convergence language (sibling repos next to the wind
+tunnel), `server-link-language` lives at
+`ad4m/bootstrap-languages/server-link-language/`. Its Docker compose
+(`infra/docker-compose.link-server.yml`) builds from `../../ad4m/link-server`.
+The link-server requires `AUTO_ADMIT=true` for C1 — without it, Agent B cannot
+join the room Agent A created. Backend health probes TCP on port 3456.
+
 ### IPFS is the two-node backend (operational note)
 
 Unlike every other C1 backend (one shared server the co-located agents both
