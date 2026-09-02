@@ -43,8 +43,9 @@ npm install
 | S8 | Subject Class Queries | Realistic Flux community graph + SPARQL/link query benchmarks |
 | S9 | Neighbourhood Memory Leak | 10k-link neighbourhood perspective + active WS subscription, RSS regression over multi-minute steady-state |
 | S15 | Leak Attribution | Fast 3-phase RSS slope split between idle / writes / writes+queries to pinpoint which path leaks |
+| S16 | Idle CPU Profiling | Instantaneous CPU% (`/proc/pid/stat` deltas) over a zero-load idle window, plus per-thread top consumers |
 
-##### S9/S15 phase tuning
+##### S9/S15/S16 phase tuning
 
 Both leak scenarios expose phase-duration env vars. Defaults (~4 min/mode for S9, ~3.5 min for S15) are tuned for tight inner-loop iteration; bump them up for high-fidelity PR-gate runs.
 
@@ -57,9 +58,13 @@ S9_MONITOR_QUERY_SEC=30      # query period during monitor (huge value = skip qu
 
 # S15 — fast 3-phase leak attribution (default ≈ 3.5 min total)
 S15_SEED=2000   S15_PHASE_SEC=60   S15_RSS_INTERVAL_SEC=2       # defaults
+
+# S16 — idle CPU profiling (default ≈ 1.5 min total)
+S16_SETTLE_SEC=10   S16_IDLE_SEC=60   S16_SAMPLE_SEC=2           # defaults
+S16_THRESHOLD_PCT=5.0    # avg idle CPU% above this fails the scenario
 ```
 
-For absolute leak verification: serial S9 sweep across all 4 modes (~16 min default, ~30 min high-fidelity). For inner-loop dev iteration: S15 (~3.5 min, attributes the leak to write vs query path automatically).
+For absolute leak verification: serial S9 sweep across all 4 modes (~16 min default, ~30 min high-fidelity). For inner-loop dev iteration: S15 (~3.5 min, attributes the leak to write vs query path automatically). For idle CPU regression detection: S16 (~1.5 min, pass/fail gates on avg CPU% ≤ threshold).
 | M1 | Neighbourhood Sync | Dual-executor neighbourhood create/join/sync |
 | M2 | Multi-Executor Scale | 3 executors, cross-interference measurement |
 | M3 | Link Language Comparison | Docker infra startup + local baseline comparison |
@@ -77,7 +82,9 @@ Results are written to `results/<branch-name>/` (branch slashes replaced with da
 src/
 ├── main.ts           # Runner/orchestrator
 ├── client.ts         # Instrumented AD4M client (WebSocket RPC)
-├── executor.ts       # Executor lifecycle management (build/start/stop)
+├── executor.ts       # Executor lifecycle management (build/start/stop, local bootstrap seed)
+├── config.ts         # Env/CLI config, incl. --bootstrap-mode
+├── proc-metrics.ts   # Shared /proc-based PID, RSS, CPU% helpers (Linux)
 ├── scenario.ts       # Scenario interface
 ├── reporters.ts      # Console + JSON reporters
 ├── report.ts         # Comparison report generator
