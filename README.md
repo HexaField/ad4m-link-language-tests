@@ -26,6 +26,35 @@ npm install
 
 # Run specific scenario against specific branch
 ./run.sh --branch main --scenario s1
+
+# Force the legacy mainnet/Holochain bootstrap for every scenario
+./run.sh --scenario s1 --bootstrap-mode mainnet
+```
+
+#### Bootstrap modes
+
+Executors boot with `--bootstrap-mode local` by default: a local, KV-backed
+set of bootstrap languages (agent/perspective/neighbourhood/link/file-storage/
+language-language) sourced from the AD4M repo (`bootstrap-languages/local/`,
+resolved via `--ad4m-repo` / `AD4M_REPO`) and pre-seeded into each
+executor's data directory, with `--run-holochain false`. No Holochain
+conductor, no mainnet seed resolved via the Cloudflare Workers bootstrap CDN,
+no external network dependency. Cold start drops from a Holochain conductor
+spin-up to sub-second, since only C1 (convergence) and S9 in `holochain` mode
+actually create a neighbourhood or publish a language — every other scenario
+just exercises perspectives, links, agents, and queries, and never needed the
+mainnet seed at all. C1 and S9 (when `S9_MODE=holochain`, its own default)
+always force `mainnet` regardless of the global setting, since they
+specifically test link-language sync.
+
+| Mode | Behaviour |
+|------|-----------|
+| `local` (default) | Local KV-backed bootstrap languages, no Holochain, no network deps |
+| `mainnet` | Current/legacy behaviour: Cloudflare Workers bootstrap CDN + Holochain p-diff-sync |
+| `holochain` | Alias for `mainnet` — same behaviour, clearer intent at the call site |
+
+```bash
+./run.sh --scenario s1 --bootstrap-mode mainnet   # or: AD4M_WT_BOOTSTRAP_MODE=mainnet
 ```
 
 #### Scenarios
@@ -77,11 +106,15 @@ Results are written to `results/<branch-name>/` (branch slashes replaced with da
 src/
 ├── main.ts           # Runner/orchestrator
 ├── client.ts         # Instrumented AD4M client (WebSocket RPC)
-├── executor.ts       # Executor lifecycle management (build/start/stop)
+├── executor.ts       # Executor lifecycle management (build/start/stop, local bootstrap seed)
+├── config.ts         # Env/CLI config, incl. --bootstrap-mode
 ├── scenario.ts       # Scenario interface
 ├── reporters.ts      # Console + JSON reporters
 ├── report.ts         # Comparison report generator
 └── scenarios/        # All scenario implementations
+
+# Local bootstrap sources live in the AD4M repo at bootstrap-languages/local/
+# (resolved via --ad4m-repo / AD4M_REPO — generates dist/bootstrap/ at runtime)
 ```
 
 ---
@@ -231,6 +264,7 @@ All machine-specific values are configurable. CLI args take precedence over envi
 | `AD4M_WT_TMPDIR` | `--tmp-dir` | OS temp dir | Base directory for temporary data and build dirs |
 | `AD4M_WT_BASE_PORT` | `--base-port` | `12100` | Starting port for executor instances |
 | `AD4M_WT_RESULTS_DIR` | `--results-dir` | `./results` | Where to write JSON result files |
+| `AD4M_WT_BOOTSTRAP_MODE` | `--bootstrap-mode` | `local` | Bootstrap seed: `local` \| `mainnet` \| `holochain` (alias for `mainnet`) — see [Bootstrap modes](#bootstrap-modes) |
 
 ### Pre-built executor
 

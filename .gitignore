@@ -1,5 +1,9 @@
 node_modules/
 dist/
+# Generated local bootstrap seed (docker_seed.json, language bundles, KV
+# store) produced by `bootstrap/generate-seed.mjs` — already covered by
+# `dist/` above, listed explicitly for clarity.
+dist/bootstrap/
 *.log
 .env
 results/

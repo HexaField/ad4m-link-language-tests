@@ -4,10 +4,118 @@
  */
 
 import { spawn, ChildProcess, execSync } from "child_process";
-import { mkdirSync, existsSync, writeFileSync, rmSync, readFileSync, copyFileSync, statSync } from "fs";
+import { mkdirSync, existsSync, writeFileSync, rmSync, readFileSync, copyFileSync, statSync, readdirSync } from "fs";
 import { homedir, tmpdir } from "os";
-import { join } from "path";
+import { dirname, join } from "path";
+import { fileURLToPath } from "url";
 import WebSocket from "ws";
+import { config as windTunnelConfig, isMainnetBootstrapMode, type BootstrapMode } from "./config.js";
+
+// ── Local bootstrap seed ────────────────────────────────────────────────
+// Most scenarios never create a neighbourhood or publish a language, so
+// booting them against the mainnet seed (Cloudflare Workers bootstrap CDN +
+// Holochain p-diff-sync as the default link language) buys nothing but a
+// slower, network-dependent Holochain conductor startup. `--bootstrap-mode
+// local` (the default — see src/config.ts) instead seeds executors with the
+// KV-backed local bootstrap languages from `bootstrap/` and skips Holochain
+// entirely (`--run-holochain false`). Only scenarios that genuinely test
+// link-language sync (c1, s9 in holochain mode) override back to mainnet —
+// see the per-scenario override in main.ts.
+
+const __filename = fileURLToPath(import.meta.url);
+const REPO_ROOT = join(dirname(__filename), "..");
+const LOCAL_BOOTSTRAP_OUT_DIR = join(REPO_ROOT, "dist", "bootstrap");
+
+/**
+ * Resolve the local bootstrap language source directory from the AD4M repo.
+ * These live at `<adamRepoPath>/bootstrap-languages/local/` — the paired
+ * AD4M PR (#893) puts them there. No duplicate copy in the wind tunnel.
+ */
+function localBootstrapSrcDir(adamRepoPath?: string): string {
+  const repo = adamRepoPath || windTunnelConfig.adamRepoPath;
+  if (!repo) {
+    throw new Error(
+      "AD4M repo path required for local bootstrap mode. " +
+      "Set via --ad4m-repo or AD4M_REPO, or use --bootstrap-mode mainnet."
+    );
+  }
+  return join(repo, "bootstrap-languages", "local");
+}
+
+export interface LocalBootstrapSeed {
+  /** Path to the generated docker_seed.json (passed as --network-bootstrap-seed) */
+  seedPath: string;
+  /** Directory of `<language-hash>/bundle.js` dirs to pre-populate into each data dir */
+  languagesDir: string;
+  /** Content address of the local language-language bundle */
+  kvAddress: string;
+  /** Pre-built language-language KV store (meta + bundle entries for the other 5 languages) */
+  kvFile: string;
+}
+
+let cachedLocalSeed: LocalBootstrapSeed | null = null;
+
+/**
+ * Generate (or reuse a cached) local bootstrap seed from `bootstrap/` into
+ * `dist/bootstrap/`. Idempotent — safe to call once up front (main.ts) and
+ * again lazily from any executor start; only regenerates when the output
+ * markers are missing.
+ */
+export function ensureLocalBootstrapSeed(adamRepoPath?: string): LocalBootstrapSeed {
+  if (cachedLocalSeed) return cachedLocalSeed;
+
+  const seedPath = join(LOCAL_BOOTSTRAP_OUT_DIR, "docker_seed.json");
+  const kvAddressPath = join(LOCAL_BOOTSTRAP_OUT_DIR, "language-language-kv", "address.txt");
+
+  if (!existsSync(seedPath) || !existsSync(kvAddressPath)) {
+    const srcDir = localBootstrapSrcDir(adamRepoPath);
+    if (!existsSync(srcDir)) {
+      throw new Error(
+        `Local bootstrap sources not found at ${srcDir}. ` +
+        `Ensure the AD4M repo (--ad4m-repo) contains bootstrap-languages/local/, ` +
+        `or use --bootstrap-mode mainnet.`
+      );
+    }
+    console.log(`[executor] Generating local bootstrap seed from ${srcDir} into ${LOCAL_BOOTSTRAP_OUT_DIR}...`);
+    mkdirSync(LOCAL_BOOTSTRAP_OUT_DIR, { recursive: true });
+    execSync(
+      `node "${join(srcDir, "generate-seed.mjs")}" "${srcDir}" "${LOCAL_BOOTSTRAP_OUT_DIR}"`,
+      { stdio: "pipe", timeout: 30000 }
+    );
+  }
+
+  cachedLocalSeed = {
+    seedPath,
+    languagesDir: join(LOCAL_BOOTSTRAP_OUT_DIR, "languages"),
+    kvAddress: readFileSync(kvAddressPath, "utf8").trim(),
+    kvFile: join(LOCAL_BOOTSTRAP_OUT_DIR, "language-language-kv", "ad4m-language-kv.json"),
+  };
+  return cachedLocalSeed;
+}
+
+/**
+ * Pre-populate a freshly-init'd data directory with the local bootstrap
+ * language bundles and the language-language's KV store, mirroring the
+ * Docker entrypoint's pre-seeding logic (docker-entrypoint.sh in the AD4M
+ * repo). Without this, the local language-language resolves other system
+ * languages via `storageGet`, which finds nothing right after a bare `init`.
+ */
+function populateLocalLanguageBundles(dataPath: string, seed: LocalBootstrapSeed): void {
+  const languagesTarget = join(dataPath, "ad4m", "languages");
+
+  for (const hash of readdirSync(seed.languagesDir)) {
+    const hashDir = join(seed.languagesDir, hash);
+    const bundleSrc = join(hashDir, "bundle.js");
+    if (!statSync(hashDir).isDirectory() || !existsSync(bundleSrc)) continue;
+    const target = join(languagesTarget, hash);
+    mkdirSync(target, { recursive: true });
+    copyFileSync(bundleSrc, join(target, "bundle.js"));
+  }
+
+  const kvTarget = join(languagesTarget, seed.kvAddress);
+  mkdirSync(kvTarget, { recursive: true });
+  copyFileSync(seed.kvFile, join(kvTarget, "ad4m-language-kv.json"));
+}
 
 /**
  * The snapshot is determined by whichever `deno_runtime` git revision is
@@ -49,6 +157,14 @@ export interface ExecutorConfig {
   buildDir: string;
   /** Extra CLI args appended to the `run` invocation (e.g. ["--language-language-only","true"]). */
   extraArgs?: string[];
+  /**
+   * Overrides the global `--bootstrap-mode` default for this executor.
+   * Falls back to the resolved config's `bootstrapMode` when omitted, so
+   * scenarios that start additional executors on their own (c1, m2, m4, m5)
+   * without setting this inherit whatever mode main.ts put in effect for
+   * the scenario's run.
+   */
+  bootstrapMode?: BootstrapMode;
 }
 
 export interface ExecutorInstance {
@@ -150,29 +266,49 @@ export async function buildExecutor(config: ExecutorConfig): Promise<string> {
   return binaryPath;
 }
 
-export async function initExecutor(binaryPath: string, dataPath: string): Promise<void> {
+export async function initExecutor(
+  binaryPath: string,
+  dataPath: string,
+  bootstrapMode: BootstrapMode = windTunnelConfig.bootstrapMode
+): Promise<void> {
   // Clean data directory
   if (existsSync(dataPath)) {
     rmSync(dataPath, { recursive: true, force: true });
   }
   mkdirSync(dataPath, { recursive: true });
 
-  // Run init
   console.log(`[executor] Initializing data at ${dataPath}...`);
-  execSync(`"${binaryPath}" init --data-path "${dataPath}" 2>&1`, {
-    stdio: "pipe",
-    timeout: 30000,
-  });
+
+  if (isMainnetBootstrapMode(bootstrapMode)) {
+    // Current/legacy behaviour: mainnet seed baked into the binary.
+    execSync(`"${binaryPath}" init --data-path "${dataPath}" 2>&1`, {
+      stdio: "pipe",
+      timeout: 30000,
+    });
+    return;
+  }
+
+  // Local mode: seed with the local KV-backed bootstrap languages, then
+  // pre-populate the language bundles + language-language KV store so
+  // system language resolution never needs to reach out anywhere.
+  const seed = ensureLocalBootstrapSeed();
+  execSync(
+    `"${binaryPath}" init --data-path "${dataPath}" --network-bootstrap-seed "${seed.seedPath}" 2>&1`,
+    { stdio: "pipe", timeout: 30000 }
+  );
+  populateLocalLanguageBundles(dataPath, seed);
 }
 
 export async function startExecutor(
   binaryPath: string,
   config: ExecutorConfig
 ): Promise<ChildProcess> {
-  // Initialize if needed
-  await initExecutor(binaryPath, config.dataPath);
+  const bootstrapMode = config.bootstrapMode ?? windTunnelConfig.bootstrapMode;
 
-  console.log(`[executor] Starting on port ${config.port}, data: ${config.dataPath}`);
+  // Initialize if needed
+  await initExecutor(binaryPath, config.dataPath, bootstrapMode);
+
+  console.log(`[executor] Starting on port ${config.port}, data: ${config.dataPath} (bootstrap: ${bootstrapMode})`);
 
   const proc = spawn(binaryPath, [
     "run",
@@ -183,6 +319,7 @@ export async function startExecutor(
     "--hc-use-bootstrap", "false",
     "--hc-use-proxy", "false",
     "--enable-multi-user", "true",
+    ...(isMainnetBootstrapMode(bootstrapMode) ? [] : ["--run-holochain", "false"]),
     ...(config.extraArgs ?? []),
   ], {
     stdio: ["pipe", "pipe", "pipe"],
